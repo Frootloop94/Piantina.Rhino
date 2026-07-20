@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+
+		<EnableDynamicLoading>true</EnableDynamicLoading>
+		<TargetExt>.rhp</TargetExt>
+
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+
+		<NoWarn>NU1701</NoWarn>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Version>0.1.0</Version>
+		<Title>Piantina</Title>
+		<Company>Piantina Designs</Company>
+		<Description>Piantina Jewellery Toolkit</Description>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="RhinoCommon" Version="8.32.26160.13001" ExcludeAssets="runtime" />
+	</ItemGroup>
+
+	<ItemGroup>
+			<ProjectReference Include="..\Piantina.Core\Piantina.Core.csproj" />
+	</ItemGroup>
+
+</Project>

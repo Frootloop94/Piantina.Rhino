@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/Piantina.Core/Piantina.Core.csproj" />
+  <Project Path="src/Piantina.Plugin/Piantina.Plugin.csproj" />
+</Solution>
