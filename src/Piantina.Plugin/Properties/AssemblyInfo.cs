@@ -12,7 +12,7 @@ using Rhino.PlugIns;
 [assembly: PlugInDescription(DescriptionType.Fax, "")]
 [assembly: PlugInDescription(DescriptionType.Organization, "Piantina Designs")]
 [assembly: PlugInDescription(DescriptionType.UpdateUrl, "")]
-[assembly: PlugInDescription(DescriptionType.WebSite, "")]
+[assembly: PlugInDescription(DescriptionType.WebSite, "https://github.com/Frootloop94/Piantina.Rhino")]
 
 // Icons should be Windows .ico files and contain 32-bit images in the following sizes: 16, 24, 32, 48, and 256.
 [assembly: PlugInDescription(DescriptionType.Icon, "Piantina.Plugin.EmbeddedResources.plugin-utility.ico")]
