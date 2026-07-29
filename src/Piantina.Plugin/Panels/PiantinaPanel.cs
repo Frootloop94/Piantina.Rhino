@@ -3,6 +3,7 @@ using Eto.Forms;
 using Piantina.Plugin.Views;
 using System;
 using System.Runtime.InteropServices;
+using Piantina.Plugin.Controls; 
 
 namespace Piantina.Plugin.Panels;
 
@@ -11,48 +12,39 @@ public class PiantinaPanel : Panel
 {
     private readonly Panel _contentPanel;
 
+    private void ShowView(Control view)
+    {
+        _contentPanel.Content = view;
+    }
+
+    
     public PiantinaPanel()
     {
         Padding = 10;
+
+        Size = new Size(700, 500);
 
         _contentPanel = new Panel
         {
             Content = new DashboardView()
         };
 
-        var dashboardButton = new Button { Text = "Dashboard" };
-        dashboardButton.Click += (_, _) => _contentPanel.Content = new DashboardView();
 
-        var materialsButton = new Button { Text = "Materials" };
-        var gemstonesButton = new Button { Text = "Gemstones" };
-        var manufacturingButton = new Button { Text = "Manufacturing" };
-        var calculatorButton = new Button { Text = "Calculator" };
-        var settingsButton = new Button { Text = "Settings" };
+        var sidebar = new Sidebar(ShowView);
+           
 
-        Content = new TableLayout
+        Content = new Splitter
         {
-            Spacing = new Size(10, 0),
+            Orientation = Orientation.Horizontal,
 
-            Rows =
-            {
-                new TableRow(
-                    new StackLayout
-                    {
-                        Width = 140,
-                        Spacing = 6,
-                        Items =
-                        {
-                            dashboardButton,
-                            materialsButton,
-                            gemstonesButton,
-                            manufacturingButton,
-                            calculatorButton,
-                            settingsButton
-                        }
-                    },
-                    _contentPanel
-                )
-            }
+            Position = 180,
+
+            FixedPanel = SplitterFixedPanel.Panel1,
+
+            Panel1 = sidebar,
+
+            Panel2 = _contentPanel
         };
+
     }
 }

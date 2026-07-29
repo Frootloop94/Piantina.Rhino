@@ -3,15 +3,15 @@ using Eto.Forms;
 
 namespace Piantina.Plugin.Views;
 
-public class GemstonesView : Panel
+public class NavigationView : Panel
 {
-    public GemstonesView()
+    public NavigationView()
     {
         Padding = 20;
 
         Content = new Label
         {
-            Text = "Gemstones",
+            Text = "Navigation",
             Font = new Font(SystemFont.Bold, 20)
         };
     }

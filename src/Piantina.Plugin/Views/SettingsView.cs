@@ -1,12 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Eto.Drawing;
+using Eto.Forms;
 
-namespace Piantina.Plugin.Views
+namespace Piantina.Plugin.Views;
+
+public class SettingsView : Panel
 {
-    internal class SettingsView
+    public SettingsView()
     {
+        Padding = 20;
+
+        Content = new Label
+        {
+            Text = "Settings",
+            Font = new Font(SystemFont.Bold, 20)
+        };
     }
 }

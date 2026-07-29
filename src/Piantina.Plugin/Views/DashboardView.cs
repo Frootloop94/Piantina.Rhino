@@ -1,36 +1,36 @@
-﻿using Eto.Drawing;
-using Eto.Forms;
+﻿using Eto.Forms;
+using Piantina.Plugin.Controls;
 
 namespace Piantina.Plugin.Views;
 
 public class DashboardView : Panel
 {
+
+
     public DashboardView()
     {
         Padding = 20;
 
+        var welcomeCard = new Card("Welcome")
+        .WithContent(
+        new Label
+        {
+            Text = "Welcome to Piantina."
+        },
+        new Label
+        {
+            Text = "Select a section from the navigation menu."
+        });
+
         Content = new StackLayout
         {
-            Spacing = 12,
+            Spacing = 20,
 
             Items =
-            {
-                new Label
-                {
-                    Text = "Dashboard",
-                    Font = new Font(SystemFont.Bold, 20)
-                },
-
-                new Label
-                {
-                    Text = "Welcome to Piantina."
-                },
-
-                new Label
-                {
-                    Text = "Select a section from the navigation menu."
-                }
-            }
+{
+    new SectionHeader("Dashboard"),
+    welcomeCard
+}
         };
     }
 }

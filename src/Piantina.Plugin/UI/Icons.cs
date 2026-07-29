@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Piantina.Plugin.Views
+namespace Piantina.Plugin.UI
 {
-    internal class NaviagtionView
+    internal class Icons
     {
     }
 }

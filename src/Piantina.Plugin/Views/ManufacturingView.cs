@@ -1,12 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Eto.Drawing;
+using Eto.Forms;
 
-namespace Piantina.Plugin.Views
+namespace Piantina.Plugin.Views;
+
+public class ManufacturingView : Panel
 {
-    internal class ManufacturingView
+    public ManufacturingView()
     {
+        Padding = 20;
+
+        Content = new Label
+        {
+            Text = "Manufacturing",
+            Font = new Font(SystemFont.Bold, 20)
+        };
     }
 }
