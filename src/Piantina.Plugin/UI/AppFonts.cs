@@ -12,4 +12,13 @@ public static class AppFonts
 
     public static readonly Font Body =
         SystemFonts.Default();
+
+    public static readonly Font BodyBold =
+        new Font(SystemFont.Bold, Body.Size);
+
+    public static readonly Font Small =
+        new Font(SystemFont.Default, 8);
+
+    public static readonly Font SmallBold =
+        new Font(SystemFont.Bold, 8);
 }

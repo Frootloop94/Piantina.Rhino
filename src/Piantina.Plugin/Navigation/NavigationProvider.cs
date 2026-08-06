@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
-using Piantina.Plugin.Views;
+﻿using Piantina.Plugin.Views;
+using Piantina.Plugin.Views.Dashboard;
+using Piantina.Plugin.Views.Materials;
+
 
 namespace Piantina.Plugin.Navigation;
 

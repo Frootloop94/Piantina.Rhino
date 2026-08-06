@@ -2,11 +2,11 @@
 
 public static class Metrics
 {
-    public const int SidebarWidth = 180;
+    public const int SidebarWidth = 210;
 
     public const int Padding = 10;
 
-    public const int Spacing = 10;
+    public const int Spacing = 8;
 
     public const int NavigationHeight = 42;
 

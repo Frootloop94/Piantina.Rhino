@@ -1,9 +1,6 @@
-﻿using Eto.Drawing;
-using Eto.Forms;
-using Piantina.Plugin.Views;
-using System;
-using Piantina.Plugin.UI;
+﻿using Eto.Forms;
 using Piantina.Plugin.Navigation;
+using Piantina.Plugin.UI;
 
 namespace Piantina.Plugin.Controls;
 
@@ -41,15 +38,26 @@ public class Sidebar : Panel
 
         foreach (var item in sidebarItems)
         {
+            if (item.Title == "Settings")
+            {
+                layout.Items.Add(
+                    new Panel
+                    {
+                        Height = 1,
+                        BackgroundColor = AppColors.Hover
+                    });
+            }
+
             var button = new NavigationButton(item, showView);
 
             button.Selected += NavigationButton_Selected;
 
-            layout.Items.Add(button);
+            layout.Items.Add(
+                new StackLayoutItem(button, HorizontalAlignment.Stretch));
         }
 
 
-        
+
         Content = layout;
     }
     private void NavigationButton_Selected(object? sender, EventArgs e)

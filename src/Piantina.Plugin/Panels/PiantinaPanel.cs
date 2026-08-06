@@ -1,9 +1,8 @@
 ﻿using Eto.Drawing;
 using Eto.Forms;
-using Piantina.Plugin.Views;
-using System;
+using Piantina.Plugin.Controls;
+using Piantina.Plugin.Views.Dashboard;
 using System.Runtime.InteropServices;
-using Piantina.Plugin.Controls; 
 
 namespace Piantina.Plugin.Panels;
 
@@ -17,12 +16,13 @@ public class PiantinaPanel : Panel
         _contentPanel.Content = view;
     }
 
-    
+
     public PiantinaPanel()
     {
         Padding = 10;
 
         Size = new Size(700, 500);
+        MinimumSize = new Size(900, 600);
 
         _contentPanel = new Panel
         {
@@ -31,7 +31,7 @@ public class PiantinaPanel : Panel
 
 
         var sidebar = new Sidebar(ShowView);
-           
+
 
         Content = new Splitter
         {

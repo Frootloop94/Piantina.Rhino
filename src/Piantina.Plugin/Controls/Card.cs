@@ -23,7 +23,8 @@ public class Card : Panel
 
     public Card(string title)
     {
-        Padding = new Padding(20);
+        Padding = new Padding(24);
+        Width = 340;
         BackgroundColor = AppColors.Card;
 
         _headerLabel = new Label
@@ -47,7 +48,7 @@ public class Card : Panel
 
         Content = new StackLayout
         {
-            Spacing = 15,
+            Spacing = 30,
             Items =
             {
                 _headerLabel,

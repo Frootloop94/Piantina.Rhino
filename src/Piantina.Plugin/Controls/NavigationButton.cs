@@ -7,8 +7,8 @@ namespace Piantina.Plugin.Controls;
 
 public class NavigationButton : Panel
 {
-    private readonly Panel _indicator;
     private readonly Label _label;
+    private readonly Panel _accentBar;
 
     public SidebarItem Item { get; }
 
@@ -23,10 +23,15 @@ public class NavigationButton : Panel
         Item = item;
 
         Height = 42;
+        Width = -1;
 
-        _indicator = new Panel
+
+
+        _accentBar = new Panel
         {
-            Width = 4
+            Width = 3,
+            Height = 42,
+            BackgroundColor = Colors.Transparent
         };
 
         _label = new Label
@@ -36,20 +41,24 @@ public class NavigationButton : Panel
             VerticalAlignment = VerticalAlignment.Center
         };
 
-        var layout = new StackLayout
+        Content = new TableLayout
         {
-            Orientation = Orientation.Horizontal,
-            VerticalContentAlignment = VerticalAlignment.Center,
-            Spacing = 12,
-            Padding = new Padding(12, 8),
-            Items =
-            {
-                _indicator,
-                _label
-            }
-        };
+            Padding = new Padding(0),
+            Spacing = new Size(0, 0),
 
-        Content = layout;
+            Rows =
+    {
+        new TableRow(
+            new TableCell(_accentBar, false),
+            new TableCell(
+                new Panel
+                {
+                    Padding = new Padding(12, 8),
+                    Content = _label
+                },
+                true))
+    }
+        };
 
         MouseDown += (_, _) =>
         {
@@ -64,7 +73,9 @@ public class NavigationButton : Panel
     {
         IsSelected = true;
 
-        _indicator.BackgroundColor = Colors.Gold;
+        _accentBar.BackgroundColor = AppColors.Accent;
+
+        BackgroundColor = AppColors.Selected;
 
         _label.Font = new Font(
             AppFonts.Body.Family,
@@ -76,7 +87,9 @@ public class NavigationButton : Panel
     {
         IsSelected = false;
 
-        _indicator.BackgroundColor = Colors.Transparent;
+        _accentBar.BackgroundColor = Colors.Transparent;
+
+        BackgroundColor = Colors.Transparent;
 
         _label.Font = AppFonts.Body;
     }
