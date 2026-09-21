@@ -1,16 +1,28 @@
 ﻿using Eto.Drawing;
 using Eto.Forms;
+using Piantina.Core.Materials;
 using Piantina.Plugin.Controls;
 
 namespace Piantina.Plugin.Views.Materials;
 
 public class MaterialsView : Panel
 {
+    private readonly MaterialService _service;
+    private readonly MaterialList _materialList;
+    private readonly MaterialDetails _materialDetails;
+
     public MaterialsView()
     {
-        var materialList = new MaterialList();
+        Padding = 20;
 
-        var materialDetails = new MaterialDetails();
+        _service = new MaterialService();
+
+        _materialList = new MaterialList(_service);
+        _materialDetails = new MaterialDetails();
+
+        _materialList.MaterialSelected += _materialDetails.ShowMaterial;
+        _materialDetails.EditRequested += material => OpenMaterialDialog(material);
+        _materialDetails.DeactivateRequested += DeactivateMaterial;
 
         var layout = new TableLayout
         {
@@ -18,23 +30,58 @@ public class MaterialsView : Panel
 
             Rows =
         {
-        new TableRow(
-            new TableCell(materialList, false),
-            new TableCell(materialDetails, true))
+            new TableRow(
+                new TableCell(_materialList, false),
+                new TableCell(_materialDetails, true))
         }
         };
 
-        materialList.MaterialSelected += materialDetails.ShowMaterial;
+        var addButton = new PrimaryButton("+ Add Material", () => OpenMaterialDialog(null));
 
         Content = new StackLayout
         {
-            Spacing = 30,
+            Spacing = 20,
 
             Items =
-    {
-        new SectionHeader("Materials"),
-        layout
-    }
+        {
+            new SectionHeader("Materials"),
+            addButton,
+            layout
+        }
         };
+    }
+
+    /// <summary>
+    /// Opens the editor for a new material (existing == null) or an existing one.
+    /// Because Material is a reference type, editing mutates the same instance the
+    /// list and details panel already hold, so refreshing after Save is enough.
+    /// </summary>
+    private void OpenMaterialDialog(Material? existing)
+    {
+        var dialog = new MaterialEditorDialog(existing);
+        var result = dialog.ShowModal(this);
+
+        if (result is null)
+            return;
+
+        if (existing is null)
+        {
+            _service.AddMaterial(result);
+        }
+        else
+        {
+            _service.NotifyMaterialUpdated();
+        }
+
+        _materialList.Refresh(result.Id);
+        _materialDetails.ShowMaterial(result);
+    }
+
+    private void DeactivateMaterial(Material material)
+    {
+        _service.SetActive(material.Id, false);
+
+        _materialList.Refresh();
+        _materialDetails.Clear();
     }
 }

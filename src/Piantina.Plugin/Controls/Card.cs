@@ -20,6 +20,12 @@ public class Card : Panel
         return this;
     }
 
+    public Card ClearContent()
+    {
+        _contentArea.Clear();
+
+        return this;
+    }
 
     public Card(string title)
     {
