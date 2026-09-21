@@ -9,7 +9,7 @@ namespace Piantina.Plugin.Navigation;
 
 public static class NavigationProvider
 {
-    public static List<SidebarItem> GetItems(Action<Control> navigate)
+    public static List<SidebarItem> GetItems(Action<string, Control> navigate)
     {
         return new List<SidebarItem>
         {

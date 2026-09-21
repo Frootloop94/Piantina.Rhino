@@ -7,9 +7,10 @@ namespace Piantina.Plugin.Controls;
 
 public class Sidebar : Panel
 {
+    private readonly List<NavigationButton> _buttons = new();
     private NavigationButton? _selectedButton;
 
-    public Sidebar(Action<Control> showView)
+    public Sidebar(Action<string, Control> showView)
     {
         var sidebarItems = NavigationProvider.GetItems(showView);
 
@@ -50,7 +51,7 @@ public class Sidebar : Panel
 
             var button = new NavigationButton(item, showView);
 
-            button.Selected += NavigationButton_Selected;
+            _buttons.Add(button);
 
             layout.Items.Add(
                 new StackLayoutItem(button, HorizontalAlignment.Stretch));
@@ -60,9 +61,18 @@ public class Sidebar : Panel
 
         Content = layout;
     }
-    private void NavigationButton_Selected(object? sender, EventArgs e)
+
+    /// <summary>
+    /// Highlights the nav button matching the given title, deselecting whichever
+    /// was previously highlighted. Called from PiantinaPanel after every
+    /// navigation - whether it came from a sidebar click or a Dashboard quick
+    /// action - so the sidebar always reflects the view actually on screen.
+    /// </summary>
+    public void Select(string title)
     {
-        if (sender is not NavigationButton button)
+        var button = _buttons.FirstOrDefault(b => b.Item.Title == title);
+
+        if (button is null || button == _selectedButton)
             return;
 
         _selectedButton?.Deselect();

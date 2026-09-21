@@ -10,10 +10,15 @@ namespace Piantina.Plugin.Panels;
 public class PiantinaPanel : Panel
 {
     private readonly Panel _contentPanel;
+    private readonly Sidebar _sidebar;
 
-    private void ShowView(Control view)
+    // The single place navigation happens - swaps the content and keeps the
+    // sidebar highlight in sync, whether the navigation came from a sidebar
+    // click or a Dashboard quick action.
+    private void ShowView(string title, Control view)
     {
         _contentPanel.Content = view;
+        _sidebar.Select(title);
     }
 
 
@@ -26,9 +31,9 @@ public class PiantinaPanel : Panel
 
         _contentPanel = new Panel();
 
-        var sidebar = new Sidebar(ShowView);
+        _sidebar = new Sidebar(ShowView);
 
-        _contentPanel.Content = new DashboardView(ShowView);
+        ShowView("Dashboard", new DashboardView(ShowView));
 
 
         Content = new Splitter
@@ -39,7 +44,7 @@ public class PiantinaPanel : Panel
 
             FixedPanel = SplitterFixedPanel.Panel1,
 
-            Panel1 = sidebar,
+            Panel1 = _sidebar,
 
             Panel2 = _contentPanel
         };

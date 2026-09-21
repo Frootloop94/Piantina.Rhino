@@ -9,7 +9,7 @@ namespace Piantina.Plugin.Views.Dashboard;
 
 public class DashboardView : Panel
 {
-    public DashboardView(Action<Control> navigate)
+    public DashboardView(Action<string, Control> navigate)
     {
         Padding = 20;
 
@@ -18,9 +18,9 @@ public class DashboardView : Panel
         var pricesCard = new MetalPricesCard(materialService);
 
         var actionsCard = new QuickActionsCard(
-            onCastingCalculator: () => navigate(new CalculatorView()),
-            onMaterials: () => navigate(new MaterialsView()),
-            onManufacturing: () => navigate(new ManufacturingView()));
+            onCastingCalculator: () => navigate("Calculator", new CalculatorView()),
+            onMaterials: () => navigate("Materials", new MaterialsView()),
+            onManufacturing: () => navigate("Manufacturing", new ManufacturingView()));
 
         var statusCard = new SystemStatusCard();
 

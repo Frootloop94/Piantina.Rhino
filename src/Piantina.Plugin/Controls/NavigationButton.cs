@@ -14,11 +14,9 @@ public class NavigationButton : Panel
 
     public bool IsSelected { get; private set; }
 
-    public event EventHandler? Selected;
-
     public NavigationButton(
         SidebarItem item,
-        Action<Control> showView)
+        Action<string, Control> showView)
     {
         Item = item;
 
@@ -60,11 +58,7 @@ public class NavigationButton : Panel
     }
         };
 
-        MouseDown += (_, _) =>
-        {
-            showView(item.CreateView());
-            Selected?.Invoke(this, EventArgs.Empty);
-        };
+        MouseDown += (_, _) => showView(item.Title, item.CreateView());
 
         Deselect();
     }
