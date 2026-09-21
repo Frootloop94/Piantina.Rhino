@@ -24,13 +24,11 @@ public class PiantinaPanel : Panel
         Size = new Size(700, 500);
         MinimumSize = new Size(900, 600);
 
-        _contentPanel = new Panel
-        {
-            Content = new DashboardView()
-        };
-
+        _contentPanel = new Panel();
 
         var sidebar = new Sidebar(ShowView);
+
+        _contentPanel.Content = new DashboardView(ShowView);
 
 
         Content = new Splitter

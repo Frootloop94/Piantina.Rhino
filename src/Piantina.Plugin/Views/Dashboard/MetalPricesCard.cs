@@ -1,18 +1,29 @@
-﻿using Piantina.Plugin.Controls;
+using Eto.Forms;
+using Piantina.Core.Materials;
+using Piantina.Plugin.Controls;
 
 namespace Piantina.Plugin.Views.Dashboard;
 
 public class MetalPricesCard : Card
 {
-    public MetalPricesCard()
+    public MetalPricesCard(MaterialService materialService)
         : base("Metal Prices")
     {
-        WithContent(
-            new InfoRow("24ct Fine Gold", "R 1 532.40"),
-            new InfoRow("18ct Yellow", "R 1 148.20"),
-            new InfoRow("18ct White", "R 1 171.30"),
-            new InfoRow("Sterling Silver", "R 18.40"),
-            new InfoRow("950 Platinum", "R 648.10")
-        );
+        // Same ordering as the Materials list (alphabetical by category, then
+        // name) so the two views stay consistent for the user.
+        var materials = materialService.GetMaterials()
+            .OrderBy(material => material.Category.ToString(), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(material => material.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (materials.Count == 0)
+        {
+            WithContent(new Label { Text = "No active materials yet." });
+            return;
+        }
+
+        WithContent(materials
+            .Select(material => (Control)new InfoRow(material.Name, $"R {material.PricePerGram:N2}"))
+            .ToArray());
     }
 }

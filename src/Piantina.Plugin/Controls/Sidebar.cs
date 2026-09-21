@@ -11,7 +11,7 @@ public class Sidebar : Panel
 
     public Sidebar(Action<Control> showView)
     {
-        var sidebarItems = NavigationProvider.GetItems();
+        var sidebarItems = NavigationProvider.GetItems(showView);
 
         var layout = new StackLayout
         {
