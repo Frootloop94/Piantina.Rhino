@@ -9,10 +9,12 @@ public class MetalPricesCard : Card
     public MetalPricesCard(MaterialService materialService)
         : base("Metal Prices")
     {
-        // Same ordering as the Materials list (alphabetical by category, then
-        // name) so the two views stay consistent for the user.
+        // Same ordering as the Materials list (category declaration order,
+        // then each material's own SortOrder, then name) so the two views
+        // stay consistent for the user.
         var materials = materialService.GetMaterials()
-            .OrderBy(material => material.Category.ToString(), StringComparer.OrdinalIgnoreCase)
+            .OrderBy(material => (int)material.Category)
+            .ThenBy(material => material.SortOrder)
             .ThenBy(material => material.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 

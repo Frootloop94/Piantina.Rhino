@@ -22,12 +22,6 @@ public class PiantinaPlugin : PlugIn
     "Piantina",
     SystemIcons.Application);
 
-        Rhino.UI.Panels.RegisterPanel(
-    this,
-    typeof(MaterialLibraryPanel),
-    "Material Library",
-    SystemIcons.Application);
-
         return LoadReturnCode.Success;
     }
 }

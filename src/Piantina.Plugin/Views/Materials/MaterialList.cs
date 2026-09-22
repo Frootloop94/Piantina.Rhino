@@ -58,10 +58,11 @@ public class MaterialList : Card
         };
 
         // Sorted so the list has a stable, predictable order regardless of the
-        // order materials were added/edited in - alphabetical by category, then
-        // alphabetical by name within each category.
+        // order materials were added/edited in - by category (in MaterialCategory's
+        // declared order, e.g. Gold before Silver), then by each material's own
+        // SortOrder within the category, then alphabetically as a final tiebreak.
         var sortedGroups = _service.GetMaterialsByCategory()
-            .OrderBy(group => group.Key.ToString(), StringComparer.OrdinalIgnoreCase);
+            .OrderBy(group => (int)group.Key);
 
         foreach (var group in sortedGroups)
         {
@@ -70,7 +71,8 @@ public class MaterialList : Card
                     material.Name.Contains(
                         searchText,
                         StringComparison.OrdinalIgnoreCase))
-                .OrderBy(material => material.Name, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(material => material.SortOrder)
+                .ThenBy(material => material.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             if (matchingMaterials.Count == 0)

@@ -1,4 +1,4 @@
-﻿using Eto.Drawing;
+using Eto.Drawing;
 using Eto.Forms;
 using Piantina.Core.Materials;
 using Piantina.Plugin.UI;
@@ -13,13 +13,15 @@ public class MaterialListItem : Panel
 
     public Material Material { get; }
 
+    private readonly Label _label;
+
     public void Select()
     {
         IsSelected = true;
 
         BackgroundColor = AppColors.Selected;
 
-        ((Label)Content).Font = AppFonts.BodyBold;
+        _label.Font = AppFonts.BodyBold;
     }
 
     public void Deselect()
@@ -28,8 +30,9 @@ public class MaterialListItem : Panel
 
         BackgroundColor = Colors.Transparent;
 
-        ((Label)Content).Font = AppFonts.Body;
+        _label.Font = AppFonts.Body;
     }
+
     public MaterialListItem(Material material)
     {
         Material = material;
@@ -40,12 +43,35 @@ public class MaterialListItem : Panel
 
         BackgroundColor = Colors.Transparent;
 
-        Content = new Label
+        var swatch = new Panel
+        {
+            Width = 18,
+            Height = 18,
+            BackgroundColor = Color.FromArgb(material.ColorR, material.ColorG, material.ColorB)
+        };
+
+        _label = new Label
         {
             Text = material.Name,
             Font = AppFonts.Body,
             TextColor = AppColors.Text
         };
+
+        // TableLayout + TableRow.Cells rather than StackLayout - the same
+        // grid mechanism CardGrid uses, since a plain StackLayout has been
+        // unreliable for sizing small fixed-size panels like the swatch here.
+        var row = new TableLayout
+        {
+            Padding = 0,
+            Spacing = new Size(8, 0)
+        };
+
+        var tableRow = new TableRow();
+        tableRow.Cells.Add(new TableCell(swatch, false));
+        tableRow.Cells.Add(new TableCell(_label, true));
+        row.Rows.Add(tableRow);
+
+        Content = row;
 
         MouseEnter += (_, _) =>
         {
@@ -59,11 +85,10 @@ public class MaterialListItem : Panel
                 BackgroundColor = Colors.Transparent;
         };
 
-        MouseDown += (_, _) =>
-        {
-            Selected?.Invoke(this, EventArgs.Empty);
-        };
+        void RaiseSelected(object? sender, EventArgs e) => Selected?.Invoke(this, EventArgs.Empty);
 
-
+        MouseDown += RaiseSelected;
+        swatch.MouseDown += RaiseSelected;
+        _label.MouseDown += RaiseSelected;
     }
 }

@@ -17,6 +17,15 @@ public class Material
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>
+    /// Controls display order within a category (ascending; ties break on
+    /// Name). Defaults to last-place for anything that doesn't set it
+    /// explicitly (e.g. a material the user adds by hand), so the built-in
+    /// catalog's deliberate order - matching the business's own metal list,
+    /// not alphabetical - isn't disturbed by materials added afterwards.
+    /// </summary>
+    public int SortOrder { get; set; } = int.MaxValue;
+
+    /// <summary>
     /// Base viewport appearance colour, used to draw the material's swatch and to
     /// build the Rhino render material applied to selected geometry. Kept as
     /// plain RGB bytes rather than a UI colour type so this project stays free

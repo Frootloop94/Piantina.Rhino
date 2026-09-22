@@ -1,6 +1,9 @@
+using Eto.Drawing;
 using Eto.Forms;
 using Piantina.Core.Materials;
 using Piantina.Plugin.Controls;
+using Piantina.Plugin.Services;
+using Piantina.Plugin.UI;
 
 namespace Piantina.Plugin.Views.Materials;
 
@@ -13,6 +16,10 @@ public class MaterialDetails : Card
     private readonly InfoRow _category;
     private readonly InfoRow _density;
     private readonly InfoRow _price;
+    private readonly Panel _colorSwatch;
+    private readonly RadioButtonList _finishSelector;
+    private readonly PrimaryButton _applyButton;
+    private readonly Label _applyStatusLabel;
     private readonly InfoRow _notes;
 
     private readonly PrimaryButton _editButton;
@@ -28,6 +35,37 @@ public class MaterialDetails : Card
         _density = new InfoRow("Density", "-");
         _price = new InfoRow("Price", "-");
         _notes = new InfoRow("Notes", "-");
+
+        _colorSwatch = new Panel
+        {
+            Width = 48,
+            Height = 24,
+            BackgroundColor = Colors.Transparent
+        };
+
+        var colorRow = new TableLayout { Padding = 0, Spacing = new Size(10, 4) };
+        var colorTableRow = new TableRow();
+        colorTableRow.Cells.Add(new TableCell(
+            new Label { Text = "Appearance", Font = AppFonts.Body, TextColor = AppColors.TextMuted },
+            true));
+        colorTableRow.Cells.Add(new TableCell(_colorSwatch, false));
+        colorRow.Rows.Add(colorTableRow);
+
+        _finishSelector = new RadioButtonList
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = new Size(12, 0),
+            Items = { "Polish", "Hammered", "Sand Blast" }
+        };
+        _finishSelector.SelectedIndex = 0;
+
+        _applyButton = new PrimaryButton("Apply to Selection", ApplyToSelection);
+
+        _applyStatusLabel = new Label
+        {
+            Font = AppFonts.Small,
+            TextColor = AppColors.TextMuted
+        };
 
         _editButton = new PrimaryButton("Edit", () =>
         {
@@ -54,6 +92,11 @@ public class MaterialDetails : Card
             _category,
             _density,
             _price,
+            colorRow,
+            new Label { Text = "Metal Finish", Font = AppFonts.Body, TextColor = AppColors.TextMuted },
+            _finishSelector,
+            _applyButton,
+            _applyStatusLabel,
             _notes,
             buttonRow);
 
@@ -72,6 +115,9 @@ public class MaterialDetails : Card
             ? "-"
             : material.Notes;
 
+        _colorSwatch.BackgroundColor = Color.FromArgb(material.ColorR, material.ColorG, material.ColorB);
+        _applyStatusLabel.Text = string.Empty;
+
         SetButtonsEnabled(true);
     }
 
@@ -89,12 +135,46 @@ public class MaterialDetails : Card
         _price.Value = "-";
         _notes.Value = "-";
 
+        _colorSwatch.BackgroundColor = Colors.Transparent;
+        _applyStatusLabel.Text = string.Empty;
+
         SetButtonsEnabled(false);
+    }
+
+    /// <summary>
+    /// Applies the shown material, with the chosen finish, to whatever's
+    /// currently selected in the Rhino viewport - the material catalog and
+    /// "give my selection this look" action now live on the same screen,
+    /// rather than a separate Material Library panel.
+    /// </summary>
+    private void ApplyToSelection()
+    {
+        if (_material is null)
+            return;
+
+        var finish = _finishSelector.SelectedIndex switch
+        {
+            1 => MetalFinish.Hammered,
+            2 => MetalFinish.SandBlast,
+            _ => MetalFinish.Polished
+        };
+
+        var result = MaterialAppearanceService.ApplyToSelection(_material, finish);
+
+        _applyStatusLabel.Text = result switch
+        {
+            MaterialAppearanceService.ApplyResult.Applied =>
+                $"Applied {_material.Name} ({finish}) to the selection.",
+            MaterialAppearanceService.ApplyResult.NothingSelected =>
+                "Select objects in Rhino first, then click Apply.",
+            _ => "No active Rhino document."
+        };
     }
 
     private void SetButtonsEnabled(bool enabled)
     {
         _editButton.Enabled = enabled;
         _deactivateButton.Enabled = enabled;
+        _applyButton.Enabled = enabled;
     }
 }
