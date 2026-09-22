@@ -26,7 +26,9 @@ public class DashboardView : Panel
 
         var projectsCard = new RecentProjectsCard();
 
-        var grid = new CardGrid()
+        // Single column: this panel is meant to dock as a narrow sidebar, where
+        // there isn't room for the 2-up card grid a wide floating window could fit.
+        var grid = new CardGrid { PreferredColumns = 1 }
             .WithCards(pricesCard, actionsCard, statusCard, projectsCard);
 
         Content = new StackLayout

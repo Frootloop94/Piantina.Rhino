@@ -19,8 +19,6 @@ public class MaterialList : Card
     public MaterialList(MaterialService service)
     : base("Materials")
     {
-        Width = 300;
-
         _service = service;
 
         _searchBox = new PiantinaSearchBox();

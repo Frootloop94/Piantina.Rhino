@@ -98,17 +98,16 @@ public class CalculatorView : Panel
                 _metalWeightRow,
                 _costRow);
 
-        var layout = new TableLayout
+        // Stacked vertically rather than side by side: this panel is meant to
+        // dock as a narrow sidebar, where there isn't room for the input and
+        // result cards to sit next to each other.
+        var layout = new DynamicLayout
         {
-            Spacing = new Size(20, 20),
-
-            Rows =
-            {
-                new TableRow(
-                    new TableCell(inputCard, false),
-                    new TableCell(resultCard, true))
-            }
+            Spacing = new Size(0, 20)
         };
+
+        layout.AddRow(inputCard);
+        layout.AddRow(resultCard);
 
         Content = new StackLayout
         {

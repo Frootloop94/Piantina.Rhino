@@ -14,9 +14,10 @@ public class Sidebar : Panel
     {
         var sidebarItems = NavigationProvider.GetItems(showView);
 
+        // No fixed Width: this now sits full-width above the content panel
+        // rather than as a narrow left-hand rail beside it.
         var layout = new StackLayout
         {
-            Width = Metrics.SidebarWidth,
             Padding = Metrics.Padding,
             Spacing = Metrics.Spacing
         };

@@ -48,7 +48,11 @@ public class CardGrid : Panel
             for (int j = 0; j < PreferredColumns; j++)
             {
                 if (i + j < _cards.Count)
-                    row.Cells.Add(_cards[i + j]);
+                    // Explicit scale=true rather than relying on the implicit
+                    // Control->TableCell conversion's default, so a card always
+                    // fills its column's share of the available width instead
+                    // of shrinking to its content's minimum.
+                    row.Cells.Add(new TableCell(_cards[i + j], true));
                 else
                     row.Cells.Add(null);
             }

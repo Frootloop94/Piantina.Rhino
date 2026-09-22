@@ -26,8 +26,10 @@ public class PiantinaPanel : Panel
     {
         Padding = 10;
 
-        Size = new Size(700, 500);
-        MinimumSize = new Size(900, 600);
+        // Small enough to dock as a narrow Rhino sidebar panel rather than
+        // needing a wide floating window - the old Size(700,500)/
+        // MinimumSize(900,600) made that impossible.
+        MinimumSize = new Size(200, 320);
 
         _contentPanel = new Panel();
 
@@ -35,19 +37,17 @@ public class PiantinaPanel : Panel
 
         ShowView("Dashboard", new DashboardView(ShowView));
 
-
-        Content = new Splitter
+        // Nav stacked above content rather than a left-hand Splitter rail:
+        // a side-by-side layout doesn't fit in a narrow docked sidebar.
+        Content = new StackLayout
         {
-            Orientation = Orientation.Horizontal,
+            Spacing = 10,
 
-            Position = 180,
-
-            FixedPanel = SplitterFixedPanel.Panel1,
-
-            Panel1 = _sidebar,
-
-            Panel2 = _contentPanel
+            Items =
+            {
+                _sidebar,
+                new StackLayoutItem(_contentPanel, true)
+            }
         };
-
     }
 }

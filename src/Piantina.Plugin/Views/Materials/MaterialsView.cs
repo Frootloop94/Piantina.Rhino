@@ -24,17 +24,16 @@ public class MaterialsView : Panel
         _materialDetails.EditRequested += material => OpenMaterialDialog(material);
         _materialDetails.DeactivateRequested += DeactivateMaterial;
 
-        var layout = new TableLayout
+        // Stacked vertically rather than side by side: this panel is meant to
+        // dock as a narrow sidebar, where there isn't room for the list and
+        // details to sit next to each other.
+        var layout = new DynamicLayout
         {
-            Spacing = new Size(20, 20),
-
-            Rows =
-        {
-            new TableRow(
-                new TableCell(_materialList, false),
-                new TableCell(_materialDetails, true))
-        }
+            Spacing = new Size(0, 20)
         };
+
+        layout.AddRow(_materialList);
+        layout.AddRow(_materialDetails);
 
         var addButton = new PrimaryButton("+ Add Material", () => OpenMaterialDialog(null));
 
