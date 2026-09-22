@@ -27,9 +27,9 @@ public class Card : Panel
         return this;
     }
 
-    public Card(string title)
+    public Card(string title, int padding = 24, int contentSpacing = 8, int headerSpacing = 30)
     {
-        Padding = new Padding(24);
+        Padding = new Padding(padding);
         BackgroundColor = AppColors.Card;
 
         _headerLabel = new Label
@@ -48,12 +48,12 @@ public class Card : Panel
 
         _contentArea = new DynamicLayout
         {
-            Spacing = new Size(0, 8)
+            Spacing = new Size(0, contentSpacing)
         };
 
         Content = new StackLayout
         {
-            Spacing = 30,
+            Spacing = headerSpacing,
             Items =
             {
                 _headerLabel,

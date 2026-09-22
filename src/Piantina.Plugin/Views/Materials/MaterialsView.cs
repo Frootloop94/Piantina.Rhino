@@ -1,8 +1,6 @@
-﻿using Eto.Drawing;
 using Eto.Forms;
 using Piantina.Core.Materials;
 using Piantina.Plugin.Controls;
-using Piantina.Plugin.UI;
 
 namespace Piantina.Plugin.Views.Materials;
 
@@ -11,7 +9,6 @@ public class MaterialsView : Panel
     private readonly MaterialService _service;
     private readonly MaterialList _materialList;
     private readonly MaterialDetails _materialDetails;
-    private readonly Label _defaultsStatusLabel;
 
     public MaterialsView()
     {
@@ -23,103 +20,48 @@ public class MaterialsView : Panel
         _materialDetails = new MaterialDetails();
 
         _materialList.MaterialSelected += _materialDetails.ShowMaterial;
-        _materialDetails.EditRequested += material => OpenMaterialDialog(material);
+        _materialDetails.EditRequested += OpenEditMaterialDialog;
         _materialDetails.DeactivateRequested += DeactivateMaterial;
 
-        // Stacked vertically rather than side by side: this panel is meant to
-        // dock as a narrow sidebar, where there isn't room for the list and
-        // details to sit next to each other.
-        var layout = new DynamicLayout
+        // The list scrolls in its own region rather than the whole tab
+        // scrolling as one long page, so Material Details stays pinned and
+        // visible at the bottom instead of getting scrolled out of view.
+        var scrollableList = new Scrollable
         {
-            Spacing = new Size(0, 20)
-        };
-
-        layout.AddRow(_materialList);
-        layout.AddRow(_materialDetails);
-
-        var addButton = new PrimaryButton("+ Add Material", () => OpenMaterialDialog(null));
-
-        var syncDefaultsButton = new Button { Text = "Sync Default Metals" };
-        syncDefaultsButton.Click += (_, _) => SyncDefaults();
-
-        _defaultsStatusLabel = new Label
-        {
-            Font = AppFonts.Small,
-            TextColor = AppColors.TextMuted
-        };
-
-        var buttonRow = new StackLayout
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            Items = { addButton, syncDefaultsButton }
+            Content = _materialList,
+            Border = BorderType.None
         };
 
         Content = new StackLayout
         {
-            Spacing = 20,
+            Spacing = 16,
 
             Items =
-        {
-            new SectionHeader("Materials"),
-            buttonRow,
-            _defaultsStatusLabel,
-            layout
-        }
+            {
+                new SectionHeader("Materials"),
+                new StackLayoutItem(scrollableList, true),
+                _materialDetails
+            }
         };
     }
 
     /// <summary>
-    /// Brings the catalog in line with the current built-in default list:
-    /// adds any of the business's real metals that aren't already present by
-    /// name, deactivates any still-active material left over from an older
-    /// version of the default list (e.g. the old generic "18ct Yellow"
-    /// placeholder, superseded by "18ct Standard Yellow Gold"), and repairs
-    /// the appearance of any material still stuck at the plain grey class
-    /// default from before appearance colours existed (e.g. "24ct Fine Gold"
-    /// showing up white/grey instead of gold). Doesn't touch anything the
-    /// user added or edited themselves.
+    /// Refreshes the list from the current state of the service. Called by
+    /// PiantinaPanel when this tab is selected, since adding a material now
+    /// happens on the Settings tab and wouldn't otherwise be reflected here
+    /// until this view was rebuilt from scratch.
     /// </summary>
-    private void SyncDefaults()
+    public void Refresh()
     {
-        var addedCount = _service.AddMissingDefaults();
-        var deactivatedCount = _service.DeactivateLegacyDefaults();
-        var repairedCount = _service.RepairMissingAppearance();
-
-        var messages = new List<string>();
-
-        if (addedCount > 0)
-        {
-            messages.Add(addedCount == 1 ? "Added 1 default metal." : $"Added {addedCount} default metals.");
-        }
-
-        if (deactivatedCount > 0)
-        {
-            messages.Add(deactivatedCount == 1
-                ? "Deactivated 1 old default."
-                : $"Deactivated {deactivatedCount} old defaults.");
-        }
-
-        if (repairedCount > 0)
-        {
-            messages.Add(repairedCount == 1
-                ? "Fixed 1 material's colour."
-                : $"Fixed {repairedCount} materials' colours.");
-        }
-
-        _defaultsStatusLabel.Text = messages.Count == 0
-            ? "Default metals are already in sync."
-            : string.Join(" ", messages);
-
         _materialList.Refresh();
     }
 
     /// <summary>
-    /// Opens the editor for a new material (existing == null) or an existing one.
-    /// Because Material is a reference type, editing mutates the same instance the
-    /// list and details panel already hold, so refreshing after Save is enough.
+    /// Because Material is a reference type, editing mutates the same instance
+    /// the list and details panel already hold, so refreshing after Save is
+    /// enough - there's nothing to re-fetch.
     /// </summary>
-    private void OpenMaterialDialog(Material? existing)
+    private void OpenEditMaterialDialog(Material existing)
     {
         var dialog = new MaterialEditorDialog(existing);
         var result = dialog.ShowModal(this);
@@ -127,14 +69,7 @@ public class MaterialsView : Panel
         if (result is null)
             return;
 
-        if (existing is null)
-        {
-            _service.AddMaterial(result);
-        }
-        else
-        {
-            _service.NotifyMaterialUpdated();
-        }
+        _service.NotifyMaterialUpdated();
 
         _materialList.Refresh(result.Id);
         _materialDetails.ShowMaterial(result);

@@ -28,7 +28,7 @@ public class MaterialDetails : Card
     private Material? _material;
 
     public MaterialDetails()
-        : base("Material Details")
+        : base("Material Details", padding: 14, contentSpacing: 4, headerSpacing: 10)
     {
         _name = new InfoRow("Name", "-");
         _category = new InfoRow("Category", "-");
@@ -38,8 +38,8 @@ public class MaterialDetails : Card
 
         _colorSwatch = new Panel
         {
-            Width = 48,
-            Height = 24,
+            Width = 40,
+            Height = 20,
             BackgroundColor = Colors.Transparent
         };
 
@@ -54,10 +54,21 @@ public class MaterialDetails : Card
         _finishSelector = new RadioButtonList
         {
             Orientation = Orientation.Horizontal,
-            Spacing = new Size(12, 0),
+            Spacing = new Size(10, 0),
             Items = { "Polish", "Hammered", "Sand Blast" }
         };
         _finishSelector.SelectedIndex = 0;
+
+        // Label and selector share one row rather than the selector getting
+        // its own heading row above it - saves vertical space now that this
+        // card is pinned at the bottom of the Materials tab.
+        var finishRow = new TableLayout { Padding = 0, Spacing = new Size(10, 4) };
+        var finishTableRow = new TableRow();
+        finishTableRow.Cells.Add(new TableCell(
+            new Label { Text = "Finish", Font = AppFonts.Body, TextColor = AppColors.TextMuted },
+            false));
+        finishTableRow.Cells.Add(new TableCell(_finishSelector, true));
+        finishRow.Rows.Add(finishTableRow);
 
         _applyButton = new PrimaryButton("Apply to Selection", ApplyToSelection);
 
@@ -93,8 +104,7 @@ public class MaterialDetails : Card
             _density,
             _price,
             colorRow,
-            new Label { Text = "Metal Finish", Font = AppFonts.Body, TextColor = AppColors.TextMuted },
-            _finishSelector,
+            finishRow,
             _applyButton,
             _applyStatusLabel,
             _notes,

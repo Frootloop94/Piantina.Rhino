@@ -1,6 +1,7 @@
 using Eto.Drawing;
 using Eto.Forms;
 using Piantina.Plugin.Navigation;
+using Piantina.Plugin.Views.Materials;
 using System.Runtime.InteropServices;
 
 namespace Piantina.Plugin.Panels;
@@ -10,6 +11,7 @@ public class PiantinaPanel : Panel
 {
     private readonly TabControl _tabControl;
     private readonly Dictionary<string, int> _pageIndexByTitle = new();
+    private MaterialsView? _materialsView;
 
     public PiantinaPanel()
     {
@@ -26,23 +28,43 @@ public class PiantinaPanel : Panel
 
         foreach (var item in NavigationProvider.GetItems(NavigateToSection))
         {
+            var view = item.CreateView();
+
+            if (view is MaterialsView materialsView)
+            {
+                _materialsView = materialsView;
+            }
+
             var page = new TabPage
             {
                 Text = item.Title,
                 // Each section scrolls independently rather than getting cut
                 // off - a narrow docked panel is often shorter than a section's
-                // full content (e.g. Materials' list plus details).
-                Content = new Scrollable
-                {
-                    Content = item.CreateView(),
-                    Border = BorderType.None
-                }
+                // full content. MaterialsView is the exception: it manages its
+                // own internal scrolling (a scrollable list with a details
+                // panel pinned below it), so it isn't wrapped again here.
+                Content = view is MaterialsView
+                    ? view
+                    : new Scrollable { Content = view, Border = BorderType.None }
             };
 
             _tabControl.Pages.Add(page);
             _pageIndexByTitle[item.Title] = index;
             index++;
         }
+
+        // Adding a material or syncing defaults now happens on the Settings
+        // tab, but Materials' view was already built and stays alive while
+        // its tab isn't selected - so it needs telling to refresh once the
+        // user actually switches back to it.
+        _tabControl.SelectedIndexChanged += (_, _) =>
+        {
+            if (_pageIndexByTitle.TryGetValue("Materials", out var materialsIndex) &&
+                _tabControl.SelectedIndex == materialsIndex)
+            {
+                _materialsView?.Refresh();
+            }
+        };
 
         Content = _tabControl;
     }
