@@ -122,6 +122,48 @@ public class MaterialService
         return missing.Count;
     }
 
+    /// <summary>
+    /// Names seeded by an older version of the default catalog that no
+    /// longer match anything in GetDefaultMaterials() - "18ct Yellow" and
+    /// "950 Platinum" were the generic 4-material placeholder set, replaced
+    /// by the business's real metal list (e.g. "18ct Standard Yellow Gold").
+    /// </summary>
+    private static readonly string[] LegacyDefaultNames =
+    {
+        "18ct Yellow",
+        "950 Platinum"
+    };
+
+    /// <summary>
+    /// Deactivates any still-active material matching a known superseded
+    /// default name (see LegacyDefaultNames), without touching anything the
+    /// user added or renamed themselves. Deactivating rather than deleting
+    /// keeps any historical costing that referenced them intact. Returns how
+    /// many were deactivated.
+    /// </summary>
+    public int DeactivateLegacyDefaults()
+    {
+        var legacyNames = LegacyDefaultNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var toDeactivate = _materials
+            .Where(material => material.IsActive && legacyNames.Contains(material.Name))
+            .ToList();
+
+        if (toDeactivate.Count == 0)
+        {
+            return 0;
+        }
+
+        foreach (var material in toDeactivate)
+        {
+            material.IsActive = false;
+        }
+
+        Persist();
+
+        return toDeactivate.Count;
+    }
+
     public IReadOnlyList<Material> GetMaterials(bool includeInactive = false)
     {
         return _materials

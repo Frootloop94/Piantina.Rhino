@@ -39,8 +39,8 @@ public class MaterialsView : Panel
 
         var addButton = new PrimaryButton("+ Add Material", () => OpenMaterialDialog(null));
 
-        var loadDefaultsButton = new Button { Text = "Load Default Metals" };
-        loadDefaultsButton.Click += (_, _) => LoadMissingDefaults();
+        var syncDefaultsButton = new Button { Text = "Sync Default Metals" };
+        syncDefaultsButton.Click += (_, _) => SyncDefaults();
 
         _defaultsStatusLabel = new Label
         {
@@ -52,7 +52,7 @@ public class MaterialsView : Panel
         {
             Orientation = Orientation.Horizontal,
             Spacing = 8,
-            Items = { addButton, loadDefaultsButton }
+            Items = { addButton, syncDefaultsButton }
         };
 
         Content = new StackLayout
@@ -70,22 +70,35 @@ public class MaterialsView : Panel
     }
 
     /// <summary>
-    /// Adds any of the built-in default metals (the business's real metal
-    /// list) that aren't already in the catalog by name, without touching
-    /// anything already added or edited - lets an install that already has a
-    /// saved catalog pick up new/changed defaults without re-entering them
-    /// by hand or losing custom materials.
+    /// Brings the catalog in line with the current built-in default list:
+    /// adds any of the business's real metals that aren't already present by
+    /// name, and deactivates any still-active material left over from an
+    /// older version of the default list (e.g. the old generic "18ct Yellow"
+    /// placeholder, superseded by "18ct Standard Yellow Gold"). Doesn't touch
+    /// anything the user added or edited themselves.
     /// </summary>
-    private void LoadMissingDefaults()
+    private void SyncDefaults()
     {
         var addedCount = _service.AddMissingDefaults();
+        var deactivatedCount = _service.DeactivateLegacyDefaults();
 
-        _defaultsStatusLabel.Text = addedCount switch
+        var messages = new List<string>();
+
+        if (addedCount > 0)
         {
-            0 => "Default metals are already all in the catalog.",
-            1 => "Added 1 default metal.",
-            _ => $"Added {addedCount} default metals."
-        };
+            messages.Add(addedCount == 1 ? "Added 1 default metal." : $"Added {addedCount} default metals.");
+        }
+
+        if (deactivatedCount > 0)
+        {
+            messages.Add(deactivatedCount == 1
+                ? "Deactivated 1 old default."
+                : $"Deactivated {deactivatedCount} old defaults.");
+        }
+
+        _defaultsStatusLabel.Text = messages.Count == 0
+            ? "Default metals are already in sync."
+            : string.Join(" ", messages);
 
         _materialList.Refresh();
     }
