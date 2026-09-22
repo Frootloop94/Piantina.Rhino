@@ -14,6 +14,8 @@ public class MaterialListItem : Panel
 {
     public event EventHandler? Selected;
 
+    public event EventHandler? DoubleClicked;
+
     public bool IsSelected { get; private set; }
 
     public Material Material { get; }
@@ -101,5 +103,11 @@ public class MaterialListItem : Panel
         MouseDown += RaiseSelected;
         _swatch.MouseDown += RaiseSelected;
         _label.MouseDown += RaiseSelected;
+
+        void RaiseDoubleClicked(object? sender, EventArgs e) => DoubleClicked?.Invoke(this, EventArgs.Empty);
+
+        MouseDoubleClick += RaiseDoubleClicked;
+        _swatch.MouseDoubleClick += RaiseDoubleClicked;
+        _label.MouseDoubleClick += RaiseDoubleClicked;
     }
 }

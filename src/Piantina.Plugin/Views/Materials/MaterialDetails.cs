@@ -155,9 +155,11 @@ public class MaterialDetails : Card
     /// Applies the shown material, with the chosen finish, to whatever's
     /// currently selected in the Rhino viewport - the material catalog and
     /// "give my selection this look" action now live on the same screen,
-    /// rather than a separate Material Library panel.
+    /// rather than a separate Material Library panel. Public so MaterialsView
+    /// can also trigger it from a double-click on a tile in the list, not
+    /// just the Apply button here.
     /// </summary>
-    private void ApplyToSelection()
+    public void ApplyToSelection()
     {
         if (_material is null)
             return;

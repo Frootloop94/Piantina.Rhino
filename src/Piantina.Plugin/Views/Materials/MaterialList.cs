@@ -12,6 +12,8 @@ public class MaterialList : Card
 
     public event Action<Material>? MaterialSelected;
 
+    public event Action<Material>? MaterialDoubleClicked;
+
     private readonly MaterialService _service;
     private readonly PiantinaSearchBox _searchBox;
     private readonly Panel _materialHost;
@@ -114,6 +116,7 @@ public class MaterialList : Card
                     var item = new MaterialListItem(material);
 
                     item.Selected += Material_Selected;
+                    item.DoubleClicked += Material_DoubleClicked;
 
                     if (_selectedMaterialId == material.Id)
                     {
@@ -176,5 +179,22 @@ public class MaterialList : Card
         _selectedMaterialId = item.Material.Id;
 
         MaterialSelected?.Invoke(item.Material);
+    }
+
+    /// <summary>
+    /// Selects the double-clicked tile the same way a single click would
+    /// (in case double-click fires without a preceding single-click
+    /// selection on some platforms), then raises MaterialDoubleClicked after
+    /// MaterialSelected has already run - so by the time a subscriber acts on
+    /// MaterialDoubleClicked, MaterialDetails is already showing this material.
+    /// </summary>
+    private void Material_DoubleClicked(object? sender, EventArgs e)
+    {
+        if (sender is not MaterialListItem item)
+            return;
+
+        Material_Selected(sender, e);
+
+        MaterialDoubleClicked?.Invoke(item.Material);
     }
 }

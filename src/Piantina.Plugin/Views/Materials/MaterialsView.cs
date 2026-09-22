@@ -20,6 +20,7 @@ public class MaterialsView : Panel
         _materialDetails = new MaterialDetails();
 
         _materialList.MaterialSelected += _materialDetails.ShowMaterial;
+        _materialList.MaterialDoubleClicked += _ => _materialDetails.ApplyToSelection();
         _materialDetails.EditRequested += OpenEditMaterialDialog;
         _materialDetails.DeactivateRequested += DeactivateMaterial;
 
