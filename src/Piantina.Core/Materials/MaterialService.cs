@@ -164,6 +164,56 @@ public class MaterialService
         return toDeactivate.Count;
     }
 
+    /// <summary>
+    /// Refreshes the appearance (colour/reflectivity/shine) of any material
+    /// still sitting at Material's own class default (plain grey, 200/200/200)
+    /// from the current default catalog's entry of the same name - covers a
+    /// material that existed before appearance fields did (like "24ct Fine
+    /// Gold" showing up grey/white instead of gold) that AddMissingDefaults()
+    /// skips because it already exists by name. Only touches materials still
+    /// at that exact default, since a real custom colour - even one that
+    /// happens to be grey - is extremely unlikely to land on precisely
+    /// 200/200/200, so this shouldn't clobber an intentional edit. Doesn't
+    /// touch density, price or anything else. Returns how many were repaired.
+    /// </summary>
+    public int RepairMissingAppearance()
+    {
+        const byte defaultColor = 200;
+
+        var defaultsByName = GetDefaultMaterials()
+            .ToDictionary(material => material.Name, StringComparer.OrdinalIgnoreCase);
+
+        var repaired = 0;
+
+        foreach (var material in _materials)
+        {
+            if (material.ColorR != defaultColor || material.ColorG != defaultColor || material.ColorB != defaultColor)
+            {
+                continue;
+            }
+
+            if (!defaultsByName.TryGetValue(material.Name, out var defaultMaterial))
+            {
+                continue;
+            }
+
+            material.ColorR = defaultMaterial.ColorR;
+            material.ColorG = defaultMaterial.ColorG;
+            material.ColorB = defaultMaterial.ColorB;
+            material.Reflectivity = defaultMaterial.Reflectivity;
+            material.Shine = defaultMaterial.Shine;
+
+            repaired++;
+        }
+
+        if (repaired > 0)
+        {
+            Persist();
+        }
+
+        return repaired;
+    }
+
     public IReadOnlyList<Material> GetMaterials(bool includeInactive = false)
     {
         return _materials

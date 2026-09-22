@@ -72,15 +72,19 @@ public class MaterialsView : Panel
     /// <summary>
     /// Brings the catalog in line with the current built-in default list:
     /// adds any of the business's real metals that aren't already present by
-    /// name, and deactivates any still-active material left over from an
-    /// older version of the default list (e.g. the old generic "18ct Yellow"
-    /// placeholder, superseded by "18ct Standard Yellow Gold"). Doesn't touch
-    /// anything the user added or edited themselves.
+    /// name, deactivates any still-active material left over from an older
+    /// version of the default list (e.g. the old generic "18ct Yellow"
+    /// placeholder, superseded by "18ct Standard Yellow Gold"), and repairs
+    /// the appearance of any material still stuck at the plain grey class
+    /// default from before appearance colours existed (e.g. "24ct Fine Gold"
+    /// showing up white/grey instead of gold). Doesn't touch anything the
+    /// user added or edited themselves.
     /// </summary>
     private void SyncDefaults()
     {
         var addedCount = _service.AddMissingDefaults();
         var deactivatedCount = _service.DeactivateLegacyDefaults();
+        var repairedCount = _service.RepairMissingAppearance();
 
         var messages = new List<string>();
 
@@ -94,6 +98,13 @@ public class MaterialsView : Panel
             messages.Add(deactivatedCount == 1
                 ? "Deactivated 1 old default."
                 : $"Deactivated {deactivatedCount} old defaults.");
+        }
+
+        if (repairedCount > 0)
+        {
+            messages.Add(repairedCount == 1
+                ? "Fixed 1 material's colour."
+                : $"Fixed {repairedCount} materials' colours.");
         }
 
         _defaultsStatusLabel.Text = messages.Count == 0
