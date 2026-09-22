@@ -1,38 +1,63 @@
 using Eto.Forms;
+using Piantina.Core.Gems;
 using Piantina.Core.Materials;
 using Piantina.Plugin.Controls;
 using Piantina.Plugin.UI;
+using Piantina.Plugin.Views.Gems;
 using Piantina.Plugin.Views.Materials;
 
 namespace Piantina.Plugin.Views;
 
 public class SettingsView : Panel
 {
-    private readonly MaterialService _service;
-    private readonly Label _statusLabel;
+    private readonly MaterialService _materialService;
+    private readonly Label _materialStatusLabel;
+
+    private readonly GemstoneService _gemstoneService;
+    private readonly Label _gemStatusLabel;
 
     public SettingsView()
     {
         Padding = 20;
 
-        _service = new MaterialService();
+        _materialService = new MaterialService();
 
-        var addButton = new PrimaryButton("+ Add Material", OpenAddMaterialDialog);
+        var addMaterialButton = new PrimaryButton("+ Add Material", OpenAddMaterialDialog);
 
-        var syncDefaultsButton = new Button { Text = "Sync Default Metals" };
-        syncDefaultsButton.Click += (_, _) => SyncDefaults();
+        var syncMetalsButton = new Button { Text = "Sync Default Metals" };
+        syncMetalsButton.Click += (_, _) => SyncDefaultMetals();
 
-        _statusLabel = new Label
+        _materialStatusLabel = new Label
         {
             Font = AppFonts.Small,
             TextColor = AppColors.TextMuted
         };
 
-        var buttonRow = new StackLayout
+        var materialButtonRow = new StackLayout
         {
             Orientation = Orientation.Horizontal,
             Spacing = 8,
-            Items = { addButton, syncDefaultsButton }
+            Items = { addMaterialButton, syncMetalsButton }
+        };
+
+        _gemstoneService = new GemstoneService();
+
+        var addGemButton = new PrimaryButton("+ Add Gem", OpenAddGemDialog);
+
+        var syncGemsButton = new Button { Text = "Sync Default Gems" };
+        syncGemsButton.Click += (_, _) => SyncDefaultGems();
+
+        _gemStatusLabel = new Label
+        {
+            Font = AppFonts.Small,
+            TextColor = AppColors.TextMuted
+        };
+
+        var gemButtonRow = new StackLayout
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Items = { addGemButton, syncGemsButton }
         };
 
         Content = new StackLayout
@@ -43,18 +68,21 @@ public class SettingsView : Panel
             {
                 new SectionHeader("Settings"),
                 new Label { Text = "Materials Catalog", Font = AppFonts.Heading, TextColor = AppColors.Text },
-                buttonRow,
-                _statusLabel
+                materialButtonRow,
+                _materialStatusLabel,
+                new Label { Text = "Gemstones Catalog", Font = AppFonts.Heading, TextColor = AppColors.Text },
+                gemButtonRow,
+                _gemStatusLabel
             }
         };
     }
 
     /// <summary>
     /// Adding and syncing live here rather than on the Materials tab itself,
-    /// to keep that tab's own top free for the material grid. The Materials
-    /// tab's view was already built when the panel opened and stays alive
-    /// while its tab isn't selected, so it won't see a material added here
-    /// until it's told to - PiantinaPanel refreshes it when its tab is
+    /// to keep that tab's own top free for the material/gem grids. The
+    /// Materials tab's view was already built when the panel opened and stays
+    /// alive while its tab isn't selected, so it won't see something added
+    /// here until it's told to - PiantinaPanel refreshes it when its tab is
     /// selected next.
     /// </summary>
     private void OpenAddMaterialDialog()
@@ -65,16 +93,16 @@ public class SettingsView : Panel
         if (result is null)
             return;
 
-        _service.AddMaterial(result);
+        _materialService.AddMaterial(result);
 
-        _statusLabel.Text = $"Added \"{result.Name}\".";
+        _materialStatusLabel.Text = $"Added \"{result.Name}\".";
     }
 
-    private void SyncDefaults()
+    private void SyncDefaultMetals()
     {
-        var addedCount = _service.AddMissingDefaults();
-        var deactivatedCount = _service.DeactivateLegacyDefaults();
-        var repairedCount = _service.RepairMissingAppearance();
+        var addedCount = _materialService.AddMissingDefaults();
+        var deactivatedCount = _materialService.DeactivateLegacyDefaults();
+        var repairedCount = _materialService.RepairMissingAppearance();
 
         var messages = new List<string>();
 
@@ -97,8 +125,33 @@ public class SettingsView : Panel
                 : $"Fixed {repairedCount} materials' colours.");
         }
 
-        _statusLabel.Text = messages.Count == 0
+        _materialStatusLabel.Text = messages.Count == 0
             ? "Default metals are already in sync."
             : string.Join(" ", messages);
+    }
+
+    private void OpenAddGemDialog()
+    {
+        var dialog = new GemEditorDialog();
+        var result = dialog.ShowModal(this);
+
+        if (result is null)
+            return;
+
+        _gemstoneService.AddGemstone(result);
+
+        _gemStatusLabel.Text = $"Added \"{result.Name}\".";
+    }
+
+    private void SyncDefaultGems()
+    {
+        var addedCount = _gemstoneService.AddMissingDefaults();
+
+        _gemStatusLabel.Text = addedCount switch
+        {
+            0 => "Default gems are already all in the catalog.",
+            1 => "Added 1 default gem.",
+            _ => $"Added {addedCount} default gems."
+        };
     }
 }
