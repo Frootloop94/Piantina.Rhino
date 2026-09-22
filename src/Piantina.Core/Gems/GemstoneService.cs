@@ -19,28 +19,37 @@ public class GemstoneService
     }
 
     /// <summary>
-    /// A starting set of common jewellery gemstones. Colour, transparency and
-    /// refractive index are typical values for each gem type - not a
-    /// certified gemmological spec sheet, just enough for a plausible
-    /// viewport swatch. Deliberately no pricing: unlike a metal, a gem's
-    /// value depends heavily on its own cut, clarity and grade rather than
-    /// just its type, so a single price on the catalog entry would be
-    /// misleading rather than useful.
+    /// A starting set of common jewellery gemstones. Colour and refractive
+    /// index are typical values for each gem type - not a certified
+    /// gemmological spec sheet, just enough for a plausible viewport swatch.
+    /// Deliberately no pricing: unlike a metal, a gem's value depends
+    /// heavily on its own cut, clarity and grade rather than just its type,
+    /// so a single price on the catalog entry would be misleading rather
+    /// than useful.
+    ///
+    /// Transparency here is tuned for how it actually looks, not physical
+    /// accuracy: Rhino's non-raytraced Shaded/Rendered display modes don't
+    /// do refraction or caustics, so a highly transparent material (a
+    /// physically accurate diamond, say) just fades toward invisible against
+    /// a light background instead of looking like glass. Lower transparency
+    /// than the real gem would have reads as a visibly coloured, sparkly
+    /// stone in that display mode; true refraction only shows up in Rhino's
+    /// Raytraced mode, which RefractiveIndex is set accurately for anyway.
     /// </summary>
     private static IEnumerable<Gemstone> GetDefaultGemstones()
     {
         var gemstones = new List<Gemstone>
         {
-            NewGemstone("Diamond", GemCategory.Diamond, 245, 250, 255, 0.95, 2.42, 0.50, 0.95),
-            NewGemstone("Ruby", GemCategory.Ruby, 180, 20, 45, 0.75, 1.77, 0.40, 0.85),
-            NewGemstone("Sapphire", GemCategory.Sapphire, 20, 70, 160, 0.75, 1.77, 0.40, 0.85),
-            NewGemstone("Emerald", GemCategory.Emerald, 10, 130, 80, 0.70, 1.58, 0.35, 0.80),
-            NewGemstone("Amethyst", GemCategory.Amethyst, 120, 60, 170, 0.80, 1.55, 0.35, 0.80),
-            NewGemstone("Blue Topaz", GemCategory.Topaz, 140, 200, 220, 0.85, 1.62, 0.35, 0.82),
-            NewGemstone("Aquamarine", GemCategory.Aquamarine, 150, 210, 210, 0.85, 1.57, 0.35, 0.80),
-            NewGemstone("Garnet", GemCategory.Garnet, 110, 20, 30, 0.70, 1.76, 0.40, 0.82),
-            NewGemstone("Peridot", GemCategory.Peridot, 150, 190, 60, 0.80, 1.67, 0.35, 0.80),
-            NewGemstone("Tanzanite", GemCategory.Tanzanite, 75, 65, 160, 0.80, 1.70, 0.35, 0.82)
+            NewGemstone("Diamond", GemCategory.Diamond, 230, 240, 250, 0.30, 2.42, 0.65, 0.97),
+            NewGemstone("Ruby", GemCategory.Ruby, 175, 15, 40, 0.45, 1.77, 0.50, 0.90),
+            NewGemstone("Sapphire", GemCategory.Sapphire, 15, 60, 150, 0.45, 1.77, 0.50, 0.90),
+            NewGemstone("Emerald", GemCategory.Emerald, 5, 120, 70, 0.40, 1.58, 0.45, 0.88),
+            NewGemstone("Amethyst", GemCategory.Amethyst, 110, 50, 165, 0.45, 1.55, 0.45, 0.88),
+            NewGemstone("Blue Topaz", GemCategory.Topaz, 120, 190, 215, 0.50, 1.62, 0.45, 0.88),
+            NewGemstone("Aquamarine", GemCategory.Aquamarine, 130, 200, 200, 0.50, 1.57, 0.45, 0.88),
+            NewGemstone("Garnet", GemCategory.Garnet, 100, 15, 25, 0.40, 1.76, 0.50, 0.88),
+            NewGemstone("Peridot", GemCategory.Peridot, 140, 185, 55, 0.45, 1.67, 0.45, 0.86),
+            NewGemstone("Tanzanite", GemCategory.Tanzanite, 65, 55, 150, 0.45, 1.70, 0.45, 0.88)
         };
 
         for (var i = 0; i < gemstones.Count; i++)
@@ -97,6 +106,55 @@ public class GemstoneService
         Persist();
 
         return missing.Count;
+    }
+
+    /// <summary>
+    /// Refreshes colour/transparency/refractive index/reflectivity/shine for
+    /// any gem whose name matches a built-in default, from the current
+    /// default catalog - lets a tuning change to the defaults (like
+    /// transparency values that looked right in theory but rendered poorly
+    /// in Rhino's non-raytraced display modes) reach a catalog that already
+    /// seeded the old values.
+    ///
+    /// Unlike MaterialService.RepairMissingAppearance, this isn't gated on
+    /// "still at an untouched placeholder" - gems are seeded with real
+    /// appearance values from the start, so there's no such placeholder to
+    /// detect safely. That means re-running this will overwrite a hand-tuned
+    /// look on a gem that still has a default name (Diamond, Ruby, ...); a
+    /// gem added under a different name is never touched. Returns how many
+    /// were refreshed.
+    /// </summary>
+    public int RefreshDefaultAppearance()
+    {
+        var defaultsByName = GetDefaultGemstones()
+            .ToDictionary(gemstone => gemstone.Name, StringComparer.OrdinalIgnoreCase);
+
+        var refreshed = 0;
+
+        foreach (var gemstone in _gemstones)
+        {
+            if (!defaultsByName.TryGetValue(gemstone.Name, out var defaultGemstone))
+            {
+                continue;
+            }
+
+            gemstone.ColorR = defaultGemstone.ColorR;
+            gemstone.ColorG = defaultGemstone.ColorG;
+            gemstone.ColorB = defaultGemstone.ColorB;
+            gemstone.Transparency = defaultGemstone.Transparency;
+            gemstone.RefractiveIndex = defaultGemstone.RefractiveIndex;
+            gemstone.Reflectivity = defaultGemstone.Reflectivity;
+            gemstone.Shine = defaultGemstone.Shine;
+
+            refreshed++;
+        }
+
+        if (refreshed > 0)
+        {
+            Persist();
+        }
+
+        return refreshed;
     }
 
     public IReadOnlyList<Gemstone> GetGemstones(bool includeInactive = false)

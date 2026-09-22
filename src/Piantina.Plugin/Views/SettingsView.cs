@@ -146,12 +146,24 @@ public class SettingsView : Panel
     private void SyncDefaultGems()
     {
         var addedCount = _gemstoneService.AddMissingDefaults();
+        var refreshedCount = _gemstoneService.RefreshDefaultAppearance();
 
-        _gemStatusLabel.Text = addedCount switch
+        var messages = new List<string>();
+
+        if (addedCount > 0)
         {
-            0 => "Default gems are already all in the catalog.",
-            1 => "Added 1 default gem.",
-            _ => $"Added {addedCount} default gems."
-        };
+            messages.Add(addedCount == 1 ? "Added 1 default gem." : $"Added {addedCount} default gems.");
+        }
+
+        if (refreshedCount > 0)
+        {
+            messages.Add(refreshedCount == 1
+                ? "Refreshed 1 gem's appearance."
+                : $"Refreshed {refreshedCount} gems' appearance.");
+        }
+
+        _gemStatusLabel.Text = messages.Count == 0
+            ? "Default gems are already in sync."
+            : string.Join(" ", messages);
     }
 }
