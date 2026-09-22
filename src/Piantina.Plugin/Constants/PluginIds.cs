@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Piantina.Core.Models
+namespace Piantina.Plugin.Constants
 {
-    internal class MaterialDefinition
+    internal class PluginIds
     {
     }
 }
