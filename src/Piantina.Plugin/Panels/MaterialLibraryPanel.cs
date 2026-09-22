@@ -105,15 +105,21 @@ public class MaterialLibraryPanel : Panel
     };
 
     /// <summary>
-    /// Rebuilds the whole swatch grid from a fresh DynamicLayout rather than
-    /// clearing and reusing one in place - same workaround MaterialList uses,
-    /// since Eto's DynamicLayout doesn't reliably support Clear()+AddRow() reuse.
+    /// Rebuilds the whole swatch grid from fresh layouts rather than clearing
+    /// and reusing one in place - same workaround MaterialList uses, since
+    /// Eto's DynamicLayout doesn't reliably support Clear()+AddRow() reuse.
+    ///
+    /// Each category's swatches are laid out with TableLayout/TableRow.Cells
+    /// (the same mechanism CardGrid uses for the Dashboard's card grid) since
+    /// that's the only multi-column grid approach already proven to render
+    /// correctly in this codebase - every other DynamicLayout.AddRow() call
+    /// here passes a single control per row, never a real row of several.
     /// </summary>
     private void LoadSwatches()
     {
-        var layout = new DynamicLayout
+        var stack = new DynamicLayout
         {
-            Spacing = new Size(10, 10)
+            Spacing = new Size(0, 16)
         };
 
         var groups = _materialService.GetMaterialsByCategory()
@@ -132,37 +138,45 @@ public class MaterialLibraryPanel : Panel
 
             anyMaterials = true;
 
-            layout.AddRow(new Label
+            stack.AddRow(new Label
             {
                 Text = group.Key.ToString(),
                 Font = AppFonts.Heading,
                 TextColor = AppColors.Text
             });
 
+            var grid = new TableLayout
+            {
+                Padding = 0,
+                Spacing = new Size(10, 10)
+            };
+
             for (var i = 0; i < materials.Count; i += Columns)
             {
-                var row = new Control[Columns];
+                var row = new TableRow();
 
                 for (var column = 0; column < Columns; column++)
                 {
                     if (i + column >= materials.Count)
                     {
-                        row[column] = new Panel();
+                        row.Cells.Add(null);
                         continue;
                     }
 
                     var swatch = new MaterialSwatch(materials[i + column]);
                     swatch.Clicked += Swatch_Clicked;
-                    row[column] = swatch;
+                    row.Cells.Add(swatch);
                 }
 
-                layout.AddRow(row);
+                grid.Rows.Add(row);
             }
+
+            stack.AddRow(grid);
         }
 
         if (!anyMaterials)
         {
-            layout.AddRow(new Label
+            stack.AddRow(new Label
             {
                 Text = "No active materials yet. Add one from the Materials screen.",
                 Font = AppFonts.Body,
@@ -170,7 +184,7 @@ public class MaterialLibraryPanel : Panel
             });
         }
 
-        _swatchHost.Content = layout;
+        _swatchHost.Content = stack;
     }
 
     private void Swatch_Clicked(object? sender, EventArgs e)

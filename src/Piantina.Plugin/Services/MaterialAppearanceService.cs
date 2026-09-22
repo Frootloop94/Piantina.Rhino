@@ -72,7 +72,7 @@ public static class MaterialAppearanceService
             Name = materialName,
             DiffuseColor = Color.FromArgb(material.ColorR, material.ColorG, material.ColorB),
             SpecularColor = Color.FromArgb(255, 255, 255),
-            Reflectivity = material.Reflectivity,
+            Reflectivity = material.Reflectivity * ReflectivityMultiplier(finish),
             Shine = material.Shine * ShineMultiplier(finish) * Rhino.DocObjects.Material.MaxShine
         };
 
@@ -92,6 +92,20 @@ public static class MaterialAppearanceService
         MetalFinish.Polished => 1.0,
         MetalFinish.Hammered => 0.45,
         MetalFinish.SandBlast => 0.15,
+        _ => 1.0
+    };
+
+    /// <summary>
+    /// Scattered light also means less overall reflectivity, not just a
+    /// smaller highlight - Rhino's real-time viewport shading leans on
+    /// Reflectivity more than Shine for how "mirror-like" a surface reads,
+    /// so this needs to drop too for a finish change to actually be visible.
+    /// </summary>
+    private static double ReflectivityMultiplier(MetalFinish finish) => finish switch
+    {
+        MetalFinish.Polished => 1.0,
+        MetalFinish.Hammered => 0.6,
+        MetalFinish.SandBlast => 0.25,
         _ => 1.0
     };
 }

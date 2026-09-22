@@ -25,6 +25,7 @@ public class MaterialSwatch : Panel
 
         var colorPanel = new Panel
         {
+            Width = 64,
             Height = 44,
             BackgroundColor = Color.FromArgb(material.ColorR, material.ColorG, material.ColorB)
         };
@@ -32,17 +33,39 @@ public class MaterialSwatch : Panel
         var label = new Label
         {
             Text = material.Name,
+            Width = 72,
             Font = AppFonts.Small,
             TextAlignment = TextAlignment.Center,
             TextColor = AppColors.Text
         };
 
-        Content = new StackLayout
+        // TableLayout + TableRow.Cells, not StackLayout - the same grid
+        // mechanism CardGrid already uses successfully. A plain StackLayout
+        // left the colour panel with no reliable width in testing.
+        var grid = new TableLayout
         {
-            Spacing = 2,
-            Items = { colorPanel, label }
+            Padding = 0,
+            Spacing = new Size(0, 2)
         };
 
-        MouseDown += (_, _) => Clicked?.Invoke(this, EventArgs.Empty);
+        var colorRow = new TableRow();
+        colorRow.Cells.Add(colorPanel);
+        grid.Rows.Add(colorRow);
+
+        var labelRow = new TableRow();
+        labelRow.Cells.Add(label);
+        grid.Rows.Add(labelRow);
+
+        Content = grid;
+
+        // Panel.MouseDown isn't guaranteed to bubble up from every child
+        // control on every Eto backend, so the click is wired to each piece
+        // of the swatch individually rather than relying on bubbling from a
+        // single outer handler.
+        void RaiseClicked(object? sender, EventArgs e) => Clicked?.Invoke(this, EventArgs.Empty);
+
+        MouseDown += RaiseClicked;
+        colorPanel.MouseDown += RaiseClicked;
+        label.MouseDown += RaiseClicked;
     }
 }
