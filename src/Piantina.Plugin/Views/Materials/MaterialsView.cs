@@ -2,6 +2,7 @@
 using Eto.Forms;
 using Piantina.Core.Materials;
 using Piantina.Plugin.Controls;
+using Piantina.Plugin.UI;
 
 namespace Piantina.Plugin.Views.Materials;
 
@@ -10,6 +11,7 @@ public class MaterialsView : Panel
     private readonly MaterialService _service;
     private readonly MaterialList _materialList;
     private readonly MaterialDetails _materialDetails;
+    private readonly Label _defaultsStatusLabel;
 
     public MaterialsView()
     {
@@ -37,6 +39,22 @@ public class MaterialsView : Panel
 
         var addButton = new PrimaryButton("+ Add Material", () => OpenMaterialDialog(null));
 
+        var loadDefaultsButton = new Button { Text = "Load Default Metals" };
+        loadDefaultsButton.Click += (_, _) => LoadMissingDefaults();
+
+        _defaultsStatusLabel = new Label
+        {
+            Font = AppFonts.Small,
+            TextColor = AppColors.TextMuted
+        };
+
+        var buttonRow = new StackLayout
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Items = { addButton, loadDefaultsButton }
+        };
+
         Content = new StackLayout
         {
             Spacing = 20,
@@ -44,10 +62,32 @@ public class MaterialsView : Panel
             Items =
         {
             new SectionHeader("Materials"),
-            addButton,
+            buttonRow,
+            _defaultsStatusLabel,
             layout
         }
         };
+    }
+
+    /// <summary>
+    /// Adds any of the built-in default metals (the business's real metal
+    /// list) that aren't already in the catalog by name, without touching
+    /// anything already added or edited - lets an install that already has a
+    /// saved catalog pick up new/changed defaults without re-entering them
+    /// by hand or losing custom materials.
+    /// </summary>
+    private void LoadMissingDefaults()
+    {
+        var addedCount = _service.AddMissingDefaults();
+
+        _defaultsStatusLabel.Text = addedCount switch
+        {
+            0 => "Default metals are already all in the catalog.",
+            1 => "Added 1 default metal.",
+            _ => $"Added {addedCount} default metals."
+        };
+
+        _materialList.Refresh();
     }
 
     /// <summary>
