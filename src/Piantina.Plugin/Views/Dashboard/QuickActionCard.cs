@@ -6,17 +6,14 @@ public class QuickActionsCard : Card
 {
     public QuickActionsCard(
         Action onCastingCalculator,
-        Action onMaterials,
-        Action onManufacturing)
+        Action onMaterials)
         : base("Quick Actions")
     {
         WithContent(
 
             new PrimaryButton("Casting Calculator", onCastingCalculator),
 
-            new PrimaryButton("Materials", onMaterials),
-
-            new PrimaryButton("Manufacturing", onManufacturing)
+            new PrimaryButton("Materials", onMaterials)
 
         );
     }

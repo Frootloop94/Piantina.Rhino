@@ -14,8 +14,6 @@ public static class NavigationProvider
         {
             new("Dashboard", () => new DashboardView(navigate)),
             new("Materials", () => new MaterialsView()),
-            new("Gemstones", () => new GemstonesView()),
-            new("Manufacturing", () => new ManufacturingView()),
             new("Calculator", () => new CalculatorView()),
             new("Settings", () => new SettingsView())
         };

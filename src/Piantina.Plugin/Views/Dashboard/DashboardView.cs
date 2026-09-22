@@ -17,8 +17,7 @@ public class DashboardView : Panel
 
         var actionsCard = new QuickActionsCard(
             onCastingCalculator: () => navigate("Calculator"),
-            onMaterials: () => navigate("Materials"),
-            onManufacturing: () => navigate("Manufacturing"));
+            onMaterials: () => navigate("Materials"));
 
         var statusCard = new SystemStatusCard();
 
