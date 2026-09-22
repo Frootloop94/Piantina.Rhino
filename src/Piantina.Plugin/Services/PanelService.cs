@@ -9,4 +9,9 @@ public static class PanelService
     {
         Rhino.UI.Panels.OpenPanel(typeof(PiantinaPanel));
     }
+
+    public static void ShowMaterialLibrary()
+    {
+        Rhino.UI.Panels.OpenPanel(typeof(MaterialLibraryPanel));
+    }
 }

@@ -25,7 +25,12 @@ public class MaterialService
             Name = "24ct Fine Gold",
             Category = MaterialCategory.Gold,
             Density = 19.32m,
-            PricePerGram = 1532.40m
+            PricePerGram = 1532.40m,
+            ColorR = 230,
+            ColorG = 186,
+            ColorB = 63,
+            Reflectivity = 0.75,
+            Shine = 0.8
         };
 
         yield return new Material
@@ -33,7 +38,12 @@ public class MaterialService
             Name = "18ct Yellow",
             Category = MaterialCategory.Gold,
             Density = 15.60m,
-            PricePerGram = 1148.20m
+            PricePerGram = 1148.20m,
+            ColorR = 222,
+            ColorG = 184,
+            ColorB = 97,
+            Reflectivity = 0.7,
+            Shine = 0.78
         };
 
         yield return new Material
@@ -41,7 +51,12 @@ public class MaterialService
             Name = "Sterling Silver",
             Category = MaterialCategory.Silver,
             Density = 10.36m,
-            PricePerGram = 18.40m
+            PricePerGram = 18.40m,
+            ColorR = 215,
+            ColorG = 215,
+            ColorB = 218,
+            Reflectivity = 0.8,
+            Shine = 0.85
         };
 
         yield return new Material
@@ -49,7 +64,12 @@ public class MaterialService
             Name = "950 Platinum",
             Category = MaterialCategory.Platinum,
             Density = 21.45m,
-            PricePerGram = 648.10m
+            PricePerGram = 648.10m,
+            ColorR = 219,
+            ColorG = 221,
+            ColorB = 225,
+            Reflectivity = 0.78,
+            Shine = 0.82
         };
     }
 

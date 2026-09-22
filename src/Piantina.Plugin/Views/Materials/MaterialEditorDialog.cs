@@ -18,6 +18,9 @@ public class MaterialEditorDialog : Dialog<Material?>
     private readonly DropDown _categoryDropDown;
     private readonly NumericStepper _densityStepper;
     private readonly NumericStepper _priceStepper;
+    private readonly ColorPicker _colorPicker;
+    private readonly NumericStepper _reflectivityStepper;
+    private readonly NumericStepper _shineStepper;
     private readonly TextArea _notesTextArea;
     private readonly Label _errorLabel;
 
@@ -28,7 +31,7 @@ public class MaterialEditorDialog : Dialog<Material?>
         _existing = existing;
 
         Title = existing is null ? "Add Material" : "Edit Material";
-        ClientSize = new Size(420, 460);
+        ClientSize = new Size(420, 620);
         Resizable = false;
         Padding = new Padding(24);
 
@@ -74,6 +77,34 @@ public class MaterialEditorDialog : Dialog<Material?>
             Value = (double)(existing?.PricePerGram ?? 0m)
         };
 
+        _colorPicker = new ColorPicker
+        {
+            Value = Color.FromArgb(
+                existing?.ColorR ?? 200,
+                existing?.ColorG ?? 200,
+                existing?.ColorB ?? 200)
+        };
+
+        _reflectivityStepper = new NumericStepper
+        {
+            Font = AppFonts.Body,
+            DecimalPlaces = 2,
+            MinValue = 0,
+            MaxValue = 1,
+            Increment = 0.05,
+            Value = existing?.Reflectivity ?? 0.5
+        };
+
+        _shineStepper = new NumericStepper
+        {
+            Font = AppFonts.Body,
+            DecimalPlaces = 2,
+            MinValue = 0,
+            MaxValue = 1,
+            Increment = 0.05,
+            Value = existing?.Shine ?? 0.6
+        };
+
         _notesTextArea = new TextArea
         {
             Font = AppFonts.Body,
@@ -107,6 +138,9 @@ public class MaterialEditorDialog : Dialog<Material?>
         AddField(form, "Category", _categoryDropDown);
         AddField(form, "Density (g/cm³)", _densityStepper);
         AddField(form, "Price per gram", _priceStepper);
+        AddField(form, "Appearance colour", _colorPicker);
+        AddField(form, "Reflectivity", _reflectivityStepper);
+        AddField(form, "Shine", _shineStepper);
         AddField(form, "Notes", _notesTextArea);
 
         form.AddRow(_errorLabel);
@@ -170,6 +204,11 @@ public class MaterialEditorDialog : Dialog<Material?>
         material.Category = category;
         material.Density = (decimal)_densityStepper.Value;
         material.PricePerGram = (decimal)_priceStepper.Value;
+        material.ColorR = (byte)Math.Round(_colorPicker.Value.R * 255f);
+        material.ColorG = (byte)Math.Round(_colorPicker.Value.G * 255f);
+        material.ColorB = (byte)Math.Round(_colorPicker.Value.B * 255f);
+        material.Reflectivity = _reflectivityStepper.Value;
+        material.Shine = _shineStepper.Value;
         material.Notes = _notesTextArea.Text?.Trim() ?? string.Empty;
 
         Close(material);
