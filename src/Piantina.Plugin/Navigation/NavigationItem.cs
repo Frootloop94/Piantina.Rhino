@@ -1,14 +1,14 @@
-﻿using Eto.Forms;
+using Eto.Forms;
 
 namespace Piantina.Plugin.Navigation;
 
-public class SidebarItem
+public class NavigationItem
 {
     public string Title { get; }
 
     public Func<Control> CreateView { get; }
 
-    public SidebarItem(string title, Func<Control> createView)
+    public NavigationItem(string title, Func<Control> createView)
     {
         Title = title;
         CreateView = createView;

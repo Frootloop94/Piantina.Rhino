@@ -2,14 +2,12 @@ using Eto.Forms;
 using Piantina.Core.Materials;
 using Piantina.Plugin.Controls;
 using Piantina.Plugin.UI.Layouts;
-using Piantina.Plugin.Views.Calculator;
-using Piantina.Plugin.Views.Materials;
 
 namespace Piantina.Plugin.Views.Dashboard;
 
 public class DashboardView : Panel
 {
-    public DashboardView(Action<string, Control> navigate)
+    public DashboardView(Action<string> navigate)
     {
         Padding = 20;
 
@@ -18,9 +16,9 @@ public class DashboardView : Panel
         var pricesCard = new MetalPricesCard(materialService);
 
         var actionsCard = new QuickActionsCard(
-            onCastingCalculator: () => navigate("Calculator", new CalculatorView()),
-            onMaterials: () => navigate("Materials", new MaterialsView()),
-            onManufacturing: () => navigate("Manufacturing", new ManufacturingView()));
+            onCastingCalculator: () => navigate("Calculator"),
+            onMaterials: () => navigate("Materials"),
+            onManufacturing: () => navigate("Manufacturing"));
 
         var statusCard = new SystemStatusCard();
 

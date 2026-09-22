@@ -1,4 +1,3 @@
-﻿using Eto.Forms;
 using Piantina.Plugin.Views;
 using Piantina.Plugin.Views.Calculator;
 using Piantina.Plugin.Views.Dashboard;
@@ -9,9 +8,9 @@ namespace Piantina.Plugin.Navigation;
 
 public static class NavigationProvider
 {
-    public static List<SidebarItem> GetItems(Action<string, Control> navigate)
+    public static List<NavigationItem> GetItems(Action<string> navigate)
     {
-        return new List<SidebarItem>
+        return new List<NavigationItem>
         {
             new("Dashboard", () => new DashboardView(navigate)),
             new("Materials", () => new MaterialsView()),

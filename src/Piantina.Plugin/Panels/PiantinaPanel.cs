@@ -1,7 +1,6 @@
-﻿using Eto.Drawing;
+using Eto.Drawing;
 using Eto.Forms;
-using Piantina.Plugin.Controls;
-using Piantina.Plugin.Views.Dashboard;
+using Piantina.Plugin.Navigation;
 using System.Runtime.InteropServices;
 
 namespace Piantina.Plugin.Panels;
@@ -9,18 +8,8 @@ namespace Piantina.Plugin.Panels;
 [Guid("F4D53D5E-52D6-4E6C-95B8-1F6D6F5E78A3")]
 public class PiantinaPanel : Panel
 {
-    private readonly Panel _contentPanel;
-    private readonly Sidebar _sidebar;
-
-    // The single place navigation happens - swaps the content and keeps the
-    // sidebar highlight in sync, whether the navigation came from a sidebar
-    // click or a Dashboard quick action.
-    private void ShowView(string title, Control view)
-    {
-        _contentPanel.Content = view;
-        _sidebar.Select(title);
-    }
-
+    private readonly TabControl _tabControl;
+    private readonly Dictionary<string, int> _pageIndexByTitle = new();
 
     public PiantinaPanel()
     {
@@ -31,23 +20,43 @@ public class PiantinaPanel : Panel
         // MinimumSize(900,600) made that impossible.
         MinimumSize = new Size(200, 320);
 
-        _contentPanel = new Panel();
+        _tabControl = new TabControl();
 
-        _sidebar = new Sidebar(ShowView);
+        var index = 0;
 
-        ShowView("Dashboard", new DashboardView(ShowView));
-
-        // Nav stacked above content rather than a left-hand Splitter rail:
-        // a side-by-side layout doesn't fit in a narrow docked sidebar.
-        Content = new StackLayout
+        foreach (var item in NavigationProvider.GetItems(NavigateToSection))
         {
-            Spacing = 10,
-
-            Items =
+            var page = new TabPage
             {
-                _sidebar,
-                new StackLayoutItem(_contentPanel, true)
-            }
-        };
+                Text = item.Title,
+                // Each section scrolls independently rather than getting cut
+                // off - a narrow docked panel is often shorter than a section's
+                // full content (e.g. Materials' list plus details).
+                Content = new Scrollable
+                {
+                    Content = item.CreateView(),
+                    Border = BorderType.None
+                }
+            };
+
+            _tabControl.Pages.Add(page);
+            _pageIndexByTitle[item.Title] = index;
+            index++;
+        }
+
+        Content = _tabControl;
+    }
+
+    /// <summary>
+    /// Lets Dashboard's quick actions jump to another section the same way
+    /// clicking its tab does. Each section's view was already built once when
+    /// the panel opened, so this only needs to change which tab is selected.
+    /// </summary>
+    private void NavigateToSection(string title)
+    {
+        if (_pageIndexByTitle.TryGetValue(title, out var pageIndex))
+        {
+            _tabControl.SelectedIndex = pageIndex;
+        }
     }
 }
