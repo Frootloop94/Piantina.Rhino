@@ -37,26 +37,26 @@ public class MaterialService
         // the single source of truth for both content and display order.
         var materials = new List<Material>
         {
-            NewMaterial("24ct Fine Gold", MaterialCategory.Gold, 19.32m, 230, 186, 63, 0.75, 0.80),
+            NewMaterial("24ct Fine Gold", MaterialCategory.Gold, 19.32m, 230, 175, 21, 0.75, 0.80),
 
             NewMaterial("22ct Standard White Gold", MaterialCategory.Gold, 17.70m, 224, 210, 180, 0.73, 0.80),
-            NewMaterial("22ct Standard Yellow Gold", MaterialCategory.Gold, 17.80m, 224, 180, 72, 0.72, 0.79),
-            NewMaterial("22ct Standard Rose Gold", MaterialCategory.Gold, 17.50m, 225, 169, 118, 0.70, 0.78),
+            NewMaterial("22ct Standard Yellow Gold", MaterialCategory.Gold, 17.80m, 224, 169, 34, 0.72, 0.79),
+            NewMaterial("22ct Standard Rose Gold", MaterialCategory.Gold, 17.50m, 225, 155, 91, 0.70, 0.78),
 
             NewMaterial("18ct White Gold 10,00%PD", MaterialCategory.Gold, 15.90m, 213, 207, 198, 0.74, 0.82),
             NewMaterial("18ct White Gold 00,00%PD", MaterialCategory.Gold, 14.70m, 208, 205, 199, 0.72, 0.80),
-            NewMaterial("18ct Standard Yellow Gold", MaterialCategory.Gold, 15.60m, 222, 184, 97, 0.70, 0.78),
-            NewMaterial("18ct Standard Rose Gold", MaterialCategory.Gold, 15.20m, 219, 158, 128, 0.68, 0.76),
+            NewMaterial("18ct Standard Yellow Gold", MaterialCategory.Gold, 15.60m, 222, 174, 66, 0.70, 0.78),
+            NewMaterial("18ct Standard Rose Gold", MaterialCategory.Gold, 15.20m, 219, 143, 105, 0.68, 0.76),
 
             NewMaterial("14ct White Gold 10,00%PD", MaterialCategory.Gold, 13.70m, 206, 201, 194, 0.71, 0.80),
             NewMaterial("14ct White Gold 00,00%PD", MaterialCategory.Gold, 12.70m, 203, 200, 196, 0.69, 0.78),
-            NewMaterial("14ct Standard Yellow Gold", MaterialCategory.Gold, 13.07m, 211, 175, 97, 0.66, 0.75),
-            NewMaterial("14ct Standard Rose Gold", MaterialCategory.Gold, 13.00m, 207, 145, 118, 0.65, 0.74),
+            NewMaterial("14ct Standard Yellow Gold", MaterialCategory.Gold, 13.07m, 211, 166, 68, 0.66, 0.75),
+            NewMaterial("14ct Standard Rose Gold", MaterialCategory.Gold, 13.00m, 207, 129, 96, 0.65, 0.74),
 
             NewMaterial("9ct White Gold 10,00%PD", MaterialCategory.Gold, 11.50m, 199, 195, 189, 0.68, 0.77),
             NewMaterial("9ct White Gold 00,00%PD", MaterialCategory.Gold, 10.70m, 197, 194, 190, 0.66, 0.76),
-            NewMaterial("9ct Standard Yellow Gold", MaterialCategory.Gold, 11.00m, 199, 165, 100, 0.62, 0.72),
-            NewMaterial("9ct Standard Rose Gold", MaterialCategory.Gold, 11.10m, 195, 139, 113, 0.61, 0.71),
+            NewMaterial("9ct Standard Yellow Gold", MaterialCategory.Gold, 11.00m, 199, 156, 75, 0.62, 0.72),
+            NewMaterial("9ct Standard Rose Gold", MaterialCategory.Gold, 11.10m, 195, 125, 92, 0.61, 0.71),
 
             NewMaterial("Fine Silver", MaterialCategory.Silver, 10.49m, 226, 226, 230, 0.82, 0.88),
             NewMaterial("Sterling Silver", MaterialCategory.Silver, 10.36m, 215, 215, 218, 0.80, 0.85),
@@ -165,16 +165,38 @@ public class MaterialService
     }
 
     /// <summary>
+    /// The appearance a gold default carried under a previous colour revision,
+    /// where the yellow/rose golds came out too washed out/desaturated. Keyed by
+    /// material name so RepairMissingAppearance() can recognise a material
+    /// still sitting at that superseded colour and refresh it to the current
+    /// default, the same way it already recognises the plain-grey default.
+    /// </summary>
+    private static readonly Dictionary<string, (byte R, byte G, byte B)> SupersededAppearanceByName =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["24ct Fine Gold"] = (230, 186, 63),
+            ["22ct Standard Yellow Gold"] = (224, 180, 72),
+            ["22ct Standard Rose Gold"] = (225, 169, 118),
+            ["18ct Standard Yellow Gold"] = (222, 184, 97),
+            ["18ct Standard Rose Gold"] = (219, 158, 128),
+            ["14ct Standard Yellow Gold"] = (211, 175, 97),
+            ["14ct Standard Rose Gold"] = (207, 145, 118),
+            ["9ct Standard Yellow Gold"] = (199, 165, 100),
+            ["9ct Standard Rose Gold"] = (195, 139, 113)
+        };
+
+    /// <summary>
     /// Refreshes the appearance (colour/reflectivity/shine) of any material
     /// still sitting at Material's own class default (plain grey, 200/200/200)
-    /// from the current default catalog's entry of the same name - covers a
+    /// or at a superseded gold colour (see SupersededAppearanceByName) from
+    /// the current default catalog's entry of the same name - covers a
     /// material that existed before appearance fields did (like "24ct Fine
     /// Gold" showing up grey/white instead of gold) that AddMissingDefaults()
     /// skips because it already exists by name. Only touches materials still
-    /// at that exact default, since a real custom colour - even one that
-    /// happens to be grey - is extremely unlikely to land on precisely
-    /// 200/200/200, so this shouldn't clobber an intentional edit. Doesn't
-    /// touch density, price or anything else. Returns how many were repaired.
+    /// at one of those exact colours, since a real custom colour landing on
+    /// precisely one of them is extremely unlikely, so this shouldn't clobber
+    /// an intentional edit. Doesn't touch density, price or anything else.
+    /// Returns how many were repaired.
     /// </summary>
     public int RepairMissingAppearance()
     {
@@ -187,7 +209,16 @@ public class MaterialService
 
         foreach (var material in _materials)
         {
-            if (material.ColorR != defaultColor || material.ColorG != defaultColor || material.ColorB != defaultColor)
+            var isPlainDefault = material.ColorR == defaultColor
+                && material.ColorG == defaultColor
+                && material.ColorB == defaultColor;
+
+            var isSupersededGold = SupersededAppearanceByName.TryGetValue(material.Name, out var superseded)
+                && material.ColorR == superseded.R
+                && material.ColorG == superseded.G
+                && material.ColorB == superseded.B;
+
+            if (!isPlainDefault && !isSupersededGold)
             {
                 continue;
             }
