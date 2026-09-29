@@ -9,6 +9,7 @@
         BaseMetal,
         Resin,
         Wax,
+        Plastic,
         Other
     }
 }

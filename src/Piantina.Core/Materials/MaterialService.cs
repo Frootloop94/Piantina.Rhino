@@ -20,21 +20,23 @@ public class MaterialService
 
     /// <summary>
     /// This catalog mirrors the actual metal/master alloy list the business
-    /// offers. Density and appearance (colour/reflectivity/shine) are typical
-    /// values for each alloy type, not a certified spec sheet for a specific
-    /// supplier - close enough for weight estimates and viewport swatches, but
-    /// worth checking against the supplier's own figures for anything
-    /// cost-critical. PricePerGram is deliberately left at 0 here: that's
-    /// current market/supplier pricing, which has to come from the business,
-    /// not a guess baked into the plugin.
+    /// offers, plus a handful of non-metal viewing aids (see the Plastic/Other
+    /// entries at the end). Density and appearance (colour/reflectivity/shine)
+    /// are typical values for each alloy type, not a certified spec sheet for
+    /// a specific supplier - close enough for weight estimates and viewport
+    /// swatches, but worth checking against the supplier's own figures for
+    /// anything cost-critical. PricePerGram is deliberately left at 0 here:
+    /// that's current market/supplier pricing, which has to come from the
+    /// business, not a guess baked into the plugin.
     /// </summary>
     private static IEnumerable<Material> GetDefaultMaterials()
     {
         // This order is the business's own metal list, not alphabetical -
         // fine gold, then each karat from 22ct down to 9ct (white, then
-        // yellow, then rose within a karat), then the four silvers. SortOrder
-        // is assigned below from this list's position, so the list itself is
-        // the single source of truth for both content and display order.
+        // yellow, then rose within a karat), then the four silvers, then the
+        // viewing-only extras. SortOrder is assigned below from this list's
+        // position, so the list itself is the single source of truth for both
+        // content and display order.
         var materials = new List<Material>
         {
             NewMaterial("24ct Fine Gold", MaterialCategory.Gold, 19.32m, 230, 175, 21, 0.75, 0.80),
@@ -61,7 +63,24 @@ public class MaterialService
             NewMaterial("Fine Silver", MaterialCategory.Silver, 10.49m, 226, 226, 230, 0.82, 0.88),
             NewMaterial("Sterling Silver", MaterialCategory.Silver, 10.36m, 215, 215, 218, 0.80, 0.85),
             NewMaterial("Tarnish Resistant Silver", MaterialCategory.Silver, 10.40m, 218, 219, 222, 0.80, 0.86),
-            NewMaterial("Platinum Silver", MaterialCategory.Silver, 10.45m, 220, 221, 224, 0.81, 0.87)
+            NewMaterial("Platinum Silver", MaterialCategory.Silver, 10.45m, 220, 221, 224, 0.81, 0.87),
+
+            // Viewing-only prototype materials: for previewing a design's
+            // form in a rough, unpolished stand-in colour before a metal
+            // choice/costing is locked in, not something the business stocks
+            // or prices - hence the matte reflectivity/shine (plastic, not
+            // polished metal) and a generic ABS-like density shared by all
+            // four colourways. Black Rhodium is the one genuine finish here -
+            // a plated-on precious-metal coating rather than a bulk metal in
+            // its own right, so it doesn't fit any of the metal categories
+            // above; its density is rhodium's own, and its higher
+            // reflectivity/shine reflect its plated, semi-gloss look next to
+            // the matte plastics.
+            NewMaterial("Grey Plastic", MaterialCategory.Plastic, 1.05m, 150, 150, 150, 0.15, 0.20),
+            NewMaterial("Red Plastic", MaterialCategory.Plastic, 1.05m, 200, 90, 75, 0.15, 0.20),
+            NewMaterial("Yellow Plastic", MaterialCategory.Plastic, 1.05m, 230, 185, 40, 0.15, 0.20),
+            NewMaterial("Black Plastic", MaterialCategory.Plastic, 1.05m, 30, 30, 30, 0.08, 0.12),
+            NewMaterial("Black Rhodium", MaterialCategory.Other, 12.41m, 35, 35, 40, 0.55, 0.65)
         };
 
         for (var i = 0; i < materials.Count; i++)
