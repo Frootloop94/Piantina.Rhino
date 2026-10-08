@@ -361,3 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Archives (backup zips accidentally staged alongside source)
+*.rar
+*.zip
+*.7z

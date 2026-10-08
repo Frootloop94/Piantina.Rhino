@@ -27,4 +27,8 @@
 			<ProjectReference Include="..\Piantina.Core\Piantina.Core.csproj" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <Folder Include="Models\" />
+	</ItemGroup>
+
 </Project>
