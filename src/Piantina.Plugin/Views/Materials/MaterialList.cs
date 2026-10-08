@@ -16,7 +16,14 @@ public class MaterialList : Card
     private const int TileWidth = MaterialListItem.TileWidth;
     private const int GridSpacing = 8;
     private const int MinColumns = 1;
-    private const int FallbackColumns = 3;
+
+    // 2, not 3 - the live-width plumbing (SetAvailableWidth, wired up from
+    // PiantinaPanel's resize) hasn't proven reliable inside Rhino's docked-
+    // panel host, so this is effectively the number that's actually in play
+    // most of the time, not just a pre-layout placeholder. 2 columns of
+    // TileWidth fit comfortably even at a narrow docked width, where 3
+    // routinely clipped the third tile.
+    private const int FallbackColumns = 2;
 
     public event Action<Material>? MaterialSelected;
 

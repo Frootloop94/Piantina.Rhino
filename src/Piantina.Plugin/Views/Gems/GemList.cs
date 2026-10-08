@@ -20,7 +20,11 @@ public class GemList : Card
     private const int TileWidth = GemListItem.TileWidth;
     private const int GridSpacing = 8;
     private const int MinColumns = 1;
-    private const int FallbackColumns = 3;
+
+    // See MaterialList's FallbackColumns comment - the live-width plumbing
+    // isn't reliably kicking in under Rhino's docked-panel host, so this is
+    // effectively the number in play most of the time.
+    private const int FallbackColumns = 2;
 
     public event Action<Gemstone>? GemSelected;
 
