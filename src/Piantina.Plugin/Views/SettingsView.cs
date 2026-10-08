@@ -5,6 +5,7 @@ using Piantina.Plugin.Controls;
 using Piantina.Plugin.UI;
 using Piantina.Plugin.Views.Gems;
 using Piantina.Plugin.Views.Materials;
+using System.IO;
 
 namespace Piantina.Plugin.Views;
 
@@ -27,17 +28,23 @@ public class SettingsView : Panel
         var syncMetalsButton = new Button { Text = "Sync Default Metals" };
         syncMetalsButton.Click += (_, _) => SyncDefaultMetals();
 
+        var importPricesButton = new Button { Text = "Import Prices (CSV)" };
+        importPricesButton.Click += (_, _) => ImportPriceList();
+
         _materialStatusLabel = new Label
         {
             Font = AppFonts.Small,
             TextColor = AppColors.TextMuted
         };
 
+        // Vertical, not side by side - three buttons together need more
+        // width than a narrow docked sidebar has (see the Materials tab's
+        // own button rows for the same fix).
         var materialButtonRow = new StackLayout
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            Items = { addMaterialButton, syncMetalsButton }
+            Orientation = Orientation.Vertical,
+            Spacing = 6,
+            Items = { addMaterialButton, syncMetalsButton, importPricesButton }
         };
 
         _gemstoneService = new GemstoneService();
@@ -55,8 +62,8 @@ public class SettingsView : Panel
 
         var gemButtonRow = new StackLayout
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
+            Orientation = Orientation.Vertical,
+            Spacing = 6,
             Items = { addGemButton, syncGemsButton }
         };
 
@@ -127,6 +134,69 @@ public class SettingsView : Panel
 
         _materialStatusLabel.Text = messages.Count == 0
             ? "Default metals are already in sync."
+            : string.Join(" ", messages);
+    }
+
+    /// <summary>
+    /// Imports today's metal price list from a CSV export of the business's
+    /// master alloy price spreadsheet (see MaterialPriceListCsv for the
+    /// format it tolerates). Updates PricePerGram on every material whose
+    /// name matches a row; a row that doesn't match anything existing (e.g.
+    /// a new alloy the catalog doesn't have yet) becomes a new material
+    /// instead, rather than being silently dropped.
+    /// </summary>
+    private void ImportPriceList()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Import Metal Price List",
+            Filters = { new FileFilter("CSV files", ".csv") },
+            CheckFileExists = true
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.Ok)
+            return;
+
+        string csvContent;
+
+        try
+        {
+            csvContent = File.ReadAllText(dialog.FileName);
+        }
+        catch (IOException ex)
+        {
+            _materialStatusLabel.Text = $"Couldn't read that file: {ex.Message}";
+            return;
+        }
+
+        var (rows, skippedLines) = MaterialPriceListCsv.Parse(csvContent);
+        var result = _materialService.ImportPriceList(rows);
+
+        var messages = new List<string>();
+
+        if (result.UpdatedCount > 0)
+        {
+            messages.Add(result.UpdatedCount == 1
+                ? "Updated 1 price."
+                : $"Updated {result.UpdatedCount} prices.");
+        }
+
+        if (result.AddedNames.Count > 0)
+        {
+            messages.Add(result.AddedNames.Count == 1
+                ? $"Added 1 new material (\"{result.AddedNames[0]}\")."
+                : $"Added {result.AddedNames.Count} new materials ({string.Join(", ", result.AddedNames)}).");
+        }
+
+        if (skippedLines.Count > 0)
+        {
+            messages.Add(skippedLines.Count == 1
+                ? "1 line couldn't be read."
+                : $"{skippedLines.Count} lines couldn't be read.");
+        }
+
+        _materialStatusLabel.Text = messages.Count == 0
+            ? "No prices found in that file."
             : string.Join(" ", messages);
     }
 

@@ -65,6 +65,14 @@ public class MaterialService
             NewMaterial("Tarnish Resistant Silver", MaterialCategory.Silver, 10.40m, 218, 219, 222, 0.80, 0.86),
             NewMaterial("Platinum Silver", MaterialCategory.Silver, 10.45m, 220, 221, 224, 0.81, 0.87),
 
+            // Platinum's own alloys - pale, cool and slightly less reflective
+            // than silver's own whites. AU/CU name the hardening alloy
+            // (gold/copper), which also warms their tint very slightly
+            // relative to Fine Platinum's own near-neutral white.
+            NewMaterial("Fine Platinum", MaterialCategory.Platinum, 21.45m, 228, 228, 230, 0.80, 0.86),
+            NewMaterial("Platinum AU", MaterialCategory.Platinum, 20.70m, 226, 222, 210, 0.78, 0.84),
+            NewMaterial("Platinum CU", MaterialCategory.Platinum, 20.90m, 224, 216, 208, 0.77, 0.83),
+
             // Viewing-only prototype materials: for previewing a design's
             // form in a rough, unpolished stand-in colour before a metal
             // choice/costing is locked in, not something the business stocks
@@ -313,6 +321,108 @@ public class MaterialService
         Persist();
 
         return true;
+    }
+
+    /// <summary>
+    /// Generic density used for a material ImportPriceList() has to create
+    /// from scratch (its name didn't match anything already in the catalog),
+    /// keyed by the category InferCategoryFromName() guessed for it. Rough
+    /// per-metal averages, not a specific alloy's real figure - same spirit
+    /// as GetDefaultMaterials()' own values, just without a name to look one
+    /// up for. Falls back to Material's own class default (10, effectively a
+    /// generic "unknown metal" density) for anything not listed here.
+    /// </summary>
+    private static readonly Dictionary<MaterialCategory, decimal> GenericDensityByCategory = new()
+    {
+        [MaterialCategory.Gold] = 15.00m,
+        [MaterialCategory.Silver] = 10.40m,
+        [MaterialCategory.Platinum] = 21.00m,
+        [MaterialCategory.Palladium] = 12.00m,
+        [MaterialCategory.BaseMetal] = 8.50m
+    };
+
+    /// <summary>
+    /// Guesses a new material's category from its name, for one
+    /// ImportPriceList() has to create from scratch - the business's price
+    /// list names every metal plainly enough ("24ct Fine Gold", "Platinum
+    /// AU", ...) that this is reliable for the business's own catalog, even
+    /// though it'd be a poor guess for an arbitrary name in general.
+    /// </summary>
+    private static MaterialCategory InferCategoryFromName(string name)
+    {
+        if (name.Contains("gold", StringComparison.OrdinalIgnoreCase))
+            return MaterialCategory.Gold;
+
+        if (name.Contains("silver", StringComparison.OrdinalIgnoreCase))
+            return MaterialCategory.Silver;
+
+        if (name.Contains("platinum", StringComparison.OrdinalIgnoreCase))
+            return MaterialCategory.Platinum;
+
+        if (name.Contains("palladium", StringComparison.OrdinalIgnoreCase))
+            return MaterialCategory.Palladium;
+
+        return MaterialCategory.BaseMetal;
+    }
+
+    /// <summary>
+    /// Applies a daily price-list import (see MaterialPriceListCsv): each row
+    /// updates the PricePerGram of the existing material with a matching name
+    /// (trimmed, case-insensitive), or - since the business's price list can
+    /// legitimately include an alloy the catalog doesn't have yet, e.g.
+    /// Platinum wasn't in it until this feature's own price sheet surfaced
+    /// the gap - creates a new one with a category and generic density
+    /// guessed from its name, same as how a material added by hand via
+    /// MaterialEditorDialog starts out. Never removes or deactivates a
+    /// material a since-removed row no longer mentions, since the price
+    /// list isn't meant to be the source of truth for which materials exist,
+    /// only for what they currently cost.
+    /// </summary>
+    public PriceImportResult ImportPriceList(IEnumerable<PriceListRow> rows)
+    {
+        var updatedCount = 0;
+        var addedNames = new List<string>();
+
+        foreach (var row in rows)
+        {
+            var name = row.Name.Trim();
+
+            if (name.Length == 0)
+            {
+                continue;
+            }
+
+            var existing = _materials.FirstOrDefault(material =>
+                string.Equals(material.Name.Trim(), name, StringComparison.OrdinalIgnoreCase));
+
+            if (existing is not null)
+            {
+                existing.PricePerGram = row.Price;
+                updatedCount++;
+                continue;
+            }
+
+            var category = InferCategoryFromName(name);
+
+            var created = new Material
+            {
+                Name = name,
+                Category = category,
+                PricePerGram = row.Price,
+                Density = GenericDensityByCategory.GetValueOrDefault(category, 10.00m),
+                SortOrder = _materials.Count == 0 ? 0 : _materials.Max(material => material.SortOrder) + 1
+            };
+
+            _materials.Add(created);
+            addedNames.Add(created.Name);
+        }
+
+        if (updatedCount > 0 || addedNames.Count > 0)
+        {
+            Persist();
+        }
+
+        return new PriceImportResult(updatedCount, addedNames);
     }
 
     public IReadOnlyList<Material> GetMaterials(bool includeInactive = false)
