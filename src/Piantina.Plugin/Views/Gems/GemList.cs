@@ -145,7 +145,13 @@ public class GemList : Card
                 {
                     if (i + column >= gemstones.Count)
                     {
-                        row.Cells.Add(null);
+                        // A real control, not null - see MaterialList's
+                        // identical comment: a column with nothing but null
+                        // cells across a group's grid collapses to zero width
+                        // in Eto's TableLayout, which made single-gem
+                        // categories (most of them, here) render narrower
+                        // than the Materials tab's grid.
+                        row.Cells.Add(new Panel { Width = TileWidth });
                         continue;
                     }
 

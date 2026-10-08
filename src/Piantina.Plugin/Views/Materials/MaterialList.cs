@@ -165,7 +165,13 @@ public class MaterialList : Card
                 {
                     if (i + column >= materials.Count)
                     {
-                        row.Cells.Add(null);
+                        // A real control, not null - a column with nothing
+                        // but null cells in every row of this group's grid
+                        // (e.g. a group with only one material) collapses to
+                        // zero width in Eto's TableLayout, which is why a
+                        // single-item group used to render narrower than a
+                        // fully-populated one instead of lining up with it.
+                        row.Cells.Add(new Panel { Width = TileWidth });
                         continue;
                     }
 
