@@ -19,11 +19,11 @@ public class MaterialsView : Panel
     private readonly Scrollable _materialScrollable;
     private readonly Scrollable _gemScrollable;
 
-    public MaterialsView()
+    public MaterialsView(MaterialService materialService, GemstoneService gemstoneService)
     {
         Padding = 20;
 
-        _materialService = new MaterialService();
+        _materialService = materialService;
 
         _materialList = new MaterialList(_materialService);
         _materialDetails = new MaterialDetails();
@@ -35,7 +35,7 @@ public class MaterialsView : Panel
         _materialDetails.DeactivateRequested += DeactivateMaterial;
         _materialDetails.ResetToDefaultRequested += ResetMaterialToDefault;
 
-        _gemstoneService = new GemstoneService();
+        _gemstoneService = gemstoneService;
 
         _gemList = new GemList(_gemstoneService);
         _gemDetails = new GemDetails();

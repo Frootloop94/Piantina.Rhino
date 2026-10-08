@@ -36,11 +36,11 @@ public class CalculatorView : Panel
 
     private List<Material> _materials = new();
 
-    public CalculatorView()
+    public CalculatorView(MaterialService materialService)
     {
         Padding = 20;
 
-        _materialService = new MaterialService();
+        _materialService = materialService;
 
         _materialDropDown = new DropDown { Font = AppFonts.Body };
 

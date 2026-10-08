@@ -17,11 +17,11 @@ public class SettingsView : Panel
     private readonly GemstoneService _gemstoneService;
     private readonly Label _gemStatusLabel;
 
-    public SettingsView()
+    public SettingsView(MaterialService materialService, GemstoneService gemstoneService)
     {
         Padding = 20;
 
-        _materialService = new MaterialService();
+        _materialService = materialService;
 
         var addMaterialButton = new PrimaryButton("+ Add Material", OpenAddMaterialDialog);
 
@@ -47,7 +47,7 @@ public class SettingsView : Panel
             Items = { addMaterialButton, syncMetalsButton, importPricesButton }
         };
 
-        _gemstoneService = new GemstoneService();
+        _gemstoneService = gemstoneService;
 
         var addGemButton = new PrimaryButton("+ Add Gem", OpenAddGemDialog);
 

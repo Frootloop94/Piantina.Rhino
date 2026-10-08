@@ -7,13 +7,13 @@ namespace Piantina.Plugin.Views.Dashboard;
 
 public class DashboardView : Panel
 {
-    public DashboardView(Action<string> navigate)
+    private readonly MetalPricesCard _pricesCard;
+
+    public DashboardView(Action<string> navigate, MaterialService materialService)
     {
         Padding = 20;
 
-        var materialService = new MaterialService();
-
-        var pricesCard = new MetalPricesCard(materialService);
+        _pricesCard = new MetalPricesCard(materialService);
 
         var actionsCard = new QuickActionsCard(
             onCastingCalculator: () => navigate("Calculator"),
@@ -26,7 +26,7 @@ public class DashboardView : Panel
         // Single column: this panel is meant to dock as a narrow sidebar, where
         // there isn't room for the 2-up card grid a wide floating window could fit.
         var grid = new CardGrid { PreferredColumns = 1 }
-            .WithCards(pricesCard, actionsCard, statusCard, projectsCard);
+            .WithCards(_pricesCard, actionsCard, statusCard, projectsCard);
 
         Content = new StackLayout
         {
@@ -38,5 +38,15 @@ public class DashboardView : Panel
                 grid
             }
         };
+    }
+
+    /// <summary>
+    /// Rebuilds the price list from the (shared) material service's current
+    /// data. Called by PiantinaPanel whenever the Dashboard tab is selected,
+    /// same as MaterialsView's own Refresh().
+    /// </summary>
+    public void Refresh()
+    {
+        _pricesCard.Refresh();
     }
 }

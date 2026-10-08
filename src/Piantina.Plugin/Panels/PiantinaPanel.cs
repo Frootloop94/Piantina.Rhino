@@ -1,6 +1,9 @@
 using Eto.Drawing;
 using Eto.Forms;
+using Piantina.Core.Gems;
+using Piantina.Core.Materials;
 using Piantina.Plugin.Navigation;
+using Piantina.Plugin.Views.Dashboard;
 using Piantina.Plugin.Views.Materials;
 using System.Runtime.InteropServices;
 
@@ -11,6 +14,7 @@ public class PiantinaPanel : Panel
 {
     private readonly TabControl _tabControl;
     private readonly Dictionary<string, int> _pageIndexByTitle = new();
+    private DashboardView? _dashboardView;
     private MaterialsView? _materialsView;
 
     public PiantinaPanel()
@@ -24,11 +28,29 @@ public class PiantinaPanel : Panel
 
         _tabControl = new TabControl();
 
+        // One shared instance per service, not one per tab - each view used
+        // to construct its own MaterialService/GemstoneService, which loads
+        // its own in-memory copy of the catalog once and never re-reads it.
+        // Since every tab's view is built once and kept alive for the
+        // plugin's lifetime, that meant a change made on one tab (e.g. a CSV
+        // price import on Settings) silently never reached another tab
+        // (e.g. Dashboard's price list) until Rhino was restarted. Sharing
+        // one instance means every tab is reading/writing the same in-memory
+        // data, so a tab just needs telling to rebuild its own UI from it -
+        // see the SelectedIndexChanged handler below.
+        var materialService = new MaterialService();
+        var gemstoneService = new GemstoneService();
+
         var index = 0;
 
-        foreach (var item in NavigationProvider.GetItems(NavigateToSection))
+        foreach (var item in NavigationProvider.GetItems(NavigateToSection, materialService, gemstoneService))
         {
             var view = item.CreateView();
+
+            if (view is DashboardView dashboardView)
+            {
+                _dashboardView = dashboardView;
+            }
 
             if (view is MaterialsView materialsView)
             {
@@ -53,12 +75,20 @@ public class PiantinaPanel : Panel
             index++;
         }
 
-        // Adding a material or syncing defaults now happens on the Settings
-        // tab, but Materials' view was already built and stays alive while
-        // its tab isn't selected - so it needs telling to refresh once the
-        // user actually switches back to it.
+        // Adding a material, syncing defaults, or importing prices now
+        // happens on the Settings tab, but Dashboard/Materials' views were
+        // already built and stay alive while their tab isn't selected - so
+        // each needs telling to rebuild its own UI once the user actually
+        // switches back to it, even though (now that the services are
+        // shared - see above) the underlying data is already current.
         _tabControl.SelectedIndexChanged += (_, _) =>
         {
+            if (_pageIndexByTitle.TryGetValue("Dashboard", out var dashboardIndex) &&
+                _tabControl.SelectedIndex == dashboardIndex)
+            {
+                _dashboardView?.Refresh();
+            }
+
             if (_pageIndexByTitle.TryGetValue("Materials", out var materialsIndex) &&
                 _tabControl.SelectedIndex == materialsIndex)
             {
