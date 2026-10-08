@@ -51,13 +51,13 @@ public class MaterialsView : Panel
         tabControl.Pages.Add(new TabPage
         {
             Text = "Metal",
-            Content = BuildSection(_materialList, _materialDetails)
+            Content = BuildSection(_materialList, _materialDetails, _materialList.SetAvailableWidth)
         });
 
         tabControl.Pages.Add(new TabPage
         {
             Text = "Gems",
-            Content = BuildSection(_gemList, _gemDetails)
+            Content = BuildSection(_gemList, _gemDetails, _gemList.SetAvailableWidth)
         });
 
         Content = new StackLayout
@@ -77,14 +77,25 @@ public class MaterialsView : Panel
     /// as one long page, so Details stays pinned and visible at the bottom
     /// instead of getting scrolled out of view. Same layout for both the
     /// Metal and Gems sub-tabs.
+    ///
+    /// onWidthChanged, when given, is fed the Scrollable's own ClientSize as
+    /// it resizes - a plain content Panel's Width getter doesn't reliably
+    /// reflect its rendered size in Eto, but a Scrollable's ClientSize is the
+    /// real, dependable visible-viewport width, which MaterialList/GemList
+    /// use to decide how many tile columns fit.
     /// </summary>
-    private static Control BuildSection(Control list, Control details)
+    private static Control BuildSection(Control list, Control details, Action<int>? onWidthChanged = null)
     {
         var scrollableList = new Scrollable
         {
             Content = list,
             Border = BorderType.None
         };
+
+        if (onWidthChanged is not null)
+        {
+            scrollableList.SizeChanged += (_, _) => onWidthChanged(scrollableList.ClientSize.Width);
+        }
 
         return new StackLayout
         {

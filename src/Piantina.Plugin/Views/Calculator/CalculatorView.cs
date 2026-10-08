@@ -44,10 +44,14 @@ public class CalculatorView : Panel
 
         _materialDropDown = new DropDown { Font = AppFonts.Body };
 
+        // Vertical, not horizontal - "Manual wax weight" and "From Rhino
+        // selection" side by side need more width than a narrow docked
+        // sidebar has, which was forcing the whole tab to scroll
+        // horizontally and clip content at both edges.
         _modeSelector = new RadioButtonList
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = new Size(16, 0),
+            Orientation = Orientation.Vertical,
+            Spacing = new Size(0, 6),
             Items = { "Manual wax weight", "From Rhino selection" }
         };
         _modeSelector.SelectedIndex = 0;

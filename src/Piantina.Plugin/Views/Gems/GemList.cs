@@ -14,7 +14,13 @@ namespace Piantina.Plugin.Views.Gems;
 /// </summary>
 public class GemList : Card
 {
-    private const int Columns = 3;
+    // Mirrors MaterialList's responsive column logic - see its comments for
+    // why this reads from an externally-reported width rather than the
+    // host Panel's own (unreliable) Width getter.
+    private const int TileWidth = GemListItem.TileWidth;
+    private const int GridSpacing = 8;
+    private const int MinColumns = 1;
+    private const int FallbackColumns = 3;
 
     public event Action<Gemstone>? GemSelected;
 
@@ -26,6 +32,7 @@ public class GemList : Card
     private GemListItem? _selectedItem;
 
     private Guid? _selectedGemId;
+    private int _availableWidth;
 
     public GemList(GemstoneService service)
         : base("Gems")
@@ -42,6 +49,32 @@ public class GemList : Card
             _gemHost);
 
         BuildGemList();
+    }
+
+    /// <summary>
+    /// Called by MaterialsView whenever the scrollable region hosting this
+    /// list resizes, so the grid can re-flow its column count to match.
+    /// </summary>
+    public void SetAvailableWidth(int width)
+    {
+        if (width == _availableWidth)
+            return;
+
+        _availableWidth = width;
+
+        BuildGemList(_searchBox.Text);
+    }
+
+    private int ComputeColumns()
+    {
+        if (_availableWidth <= 0)
+        {
+            return FallbackColumns;
+        }
+
+        var columns = (_availableWidth + GridSpacing) / (TileWidth + GridSpacing);
+
+        return Math.Max(MinColumns, columns);
     }
 
     /// <summary>
@@ -95,14 +128,16 @@ public class GemList : Card
             var grid = new TableLayout
             {
                 Padding = 0,
-                Spacing = new Size(8, 8)
+                Spacing = new Size(GridSpacing, GridSpacing)
             };
 
-            for (var i = 0; i < gemstones.Count; i += Columns)
+            var columns = ComputeColumns();
+
+            for (var i = 0; i < gemstones.Count; i += columns)
             {
                 var row = new TableRow();
 
-                for (var column = 0; column < Columns; column++)
+                for (var column = 0; column < columns; column++)
                 {
                     if (i + column >= gemstones.Count)
                     {

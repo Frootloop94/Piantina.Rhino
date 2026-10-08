@@ -29,6 +29,15 @@ public class MaterialList : Card
 
     private Guid? _selectedMaterialId;
 
+    // Set from outside (MaterialsView, from its wrapping Scrollable's
+    // SizeChanged) rather than read from _materialHost.Width - a plain,
+    // unstretched Panel's own Width getter doesn't reliably reflect its
+    // rendered size in Eto, so it never shrank below FallbackColumns no
+    // matter how narrow the docked panel actually was. A Scrollable's
+    // ClientSize is the real, dependable source of the visible viewport
+    // width.
+    private int _availableWidth;
+
     public MaterialList(MaterialService service)
     : base("Materials")
     {
@@ -39,11 +48,6 @@ public class MaterialList : Card
 
         _materialHost = new Panel();
 
-        // Re-flows the grid's column count on every resize (e.g. the user
-        // dragging the docked panel wider/narrower), not just on the next
-        // search/selection-driven rebuild.
-        _materialHost.SizeChanged += (_, _) => BuildMaterialList(_searchBox.Text);
-
         WithContent(
             _searchBox,
             _materialHost);
@@ -52,21 +56,32 @@ public class MaterialList : Card
     }
 
     /// <summary>
-    /// How many tiles fit per row at the host's current width. Falls back to
-    /// a sane default before the control has been through a layout pass
-    /// (Width is 0/unset at construction time) - Refresh()/the SizeChanged
-    /// handler above correct this to a real value as soon as it's shown.
+    /// Called by MaterialsView whenever the scrollable region hosting this
+    /// list resizes, so the grid can re-flow its column count to match.
+    /// </summary>
+    public void SetAvailableWidth(int width)
+    {
+        if (width == _availableWidth)
+            return;
+
+        _availableWidth = width;
+
+        BuildMaterialList(_searchBox.Text);
+    }
+
+    /// <summary>
+    /// How many tiles fit per row at the last known available width. Falls
+    /// back to a sane default before MaterialsView has reported a real width
+    /// (e.g. during construction, before the first layout pass).
     /// </summary>
     private int ComputeColumns()
     {
-        var availableWidth = _materialHost.Width;
-
-        if (availableWidth <= 0)
+        if (_availableWidth <= 0)
         {
             return FallbackColumns;
         }
 
-        var columns = (availableWidth + GridSpacing) / (TileWidth + GridSpacing);
+        var columns = (_availableWidth + GridSpacing) / (TileWidth + GridSpacing);
 
         return Math.Max(MinColumns, columns);
     }

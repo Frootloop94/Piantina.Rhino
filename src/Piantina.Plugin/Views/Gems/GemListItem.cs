@@ -12,6 +12,11 @@ namespace Piantina.Plugin.Views.Gems;
 /// </summary>
 public class GemListItem : Panel
 {
+    // Mirrors MaterialListItem.TileWidth - shared with GemList, which derives
+    // its column count from this.
+    public const int TileWidth = 64;
+    private const int SwatchWidth = 56;
+
     public event EventHandler? Selected;
 
     public event EventHandler? DoubleClicked;
@@ -45,8 +50,8 @@ public class GemListItem : Panel
     {
         Gemstone = gemstone;
 
-        Width = 72;
-        Height = 64;
+        Width = TileWidth;
+        Height = 56;
 
         Padding = 4;
 
@@ -54,8 +59,8 @@ public class GemListItem : Panel
 
         _swatch = new Panel
         {
-            Width = 64,
-            Height = 40,
+            Width = SwatchWidth,
+            Height = 34,
             BackgroundColor = Color.FromArgb(gemstone.ColorR, gemstone.ColorG, gemstone.ColorB)
         };
 

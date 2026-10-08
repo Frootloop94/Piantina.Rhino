@@ -54,24 +54,26 @@ public class MaterialDetails : Card
         colorTableRow.Cells.Add(new TableCell(_colorSwatch, false));
         colorRow.Rows.Add(colorTableRow);
 
+        // Vertical, not horizontal - "Polish"/"Hammered"/"Sand Blast" side by
+        // side need more width than a narrow docked sidebar has, which was
+        // forcing this card to clip or scroll horizontally.
         _finishSelector = new RadioButtonList
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = new Size(10, 0),
+            Orientation = Orientation.Vertical,
+            Spacing = new Size(0, 2),
             Items = { "Polish", "Hammered", "Sand Blast" }
         };
         _finishSelector.SelectedIndex = 0;
 
-        // Label and selector share one row rather than the selector getting
-        // its own heading row above it - saves vertical space now that this
-        // card is pinned at the bottom of the Materials tab.
-        var finishRow = new TableLayout { Padding = 0, Spacing = new Size(10, 4) };
-        var finishTableRow = new TableRow();
-        finishTableRow.Cells.Add(new TableCell(
-            new Label { Text = "Finish", Font = AppFonts.Body, TextColor = AppColors.TextMuted },
-            false));
-        finishTableRow.Cells.Add(new TableCell(_finishSelector, true));
-        finishRow.Rows.Add(finishTableRow);
+        var finishRow = new StackLayout
+        {
+            Spacing = 4,
+            Items =
+            {
+                new Label { Text = "Finish", Font = AppFonts.Body, TextColor = AppColors.TextMuted },
+                _finishSelector
+            }
+        };
 
         _applyButton = new PrimaryButton("Apply to Selection", ApplyToSelection);
 
@@ -101,10 +103,12 @@ public class MaterialDetails : Card
                 DeactivateRequested?.Invoke(_material);
         };
 
+        // Vertical, not side by side - Edit/Reset to Default/Deactivate
+        // together need more width than a narrow docked sidebar has.
         var buttonRow = new StackLayout
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
+            Orientation = Orientation.Vertical,
+            Spacing = 6,
             Items = { _editButton, _resetButton, _deactivateButton }
         };
 
