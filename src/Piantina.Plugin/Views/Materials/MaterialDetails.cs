@@ -11,6 +11,7 @@ public class MaterialDetails : Card
 {
     public event Action<Material>? EditRequested;
     public event Action<Material>? DeactivateRequested;
+    public event Action<Material>? ResetToDefaultRequested;
 
     private readonly InfoRow _name;
     private readonly InfoRow _category;
@@ -23,9 +24,11 @@ public class MaterialDetails : Card
     private readonly InfoRow _notes;
 
     private readonly PrimaryButton _editButton;
+    private readonly Button _resetButton;
     private readonly Button _deactivateButton;
 
     private Material? _material;
+    private bool _hasDefault;
 
     public MaterialDetails()
         : base("Material Details", padding: 14, contentSpacing: 4, headerSpacing: 10)
@@ -84,6 +87,13 @@ public class MaterialDetails : Card
                 EditRequested?.Invoke(_material);
         });
 
+        _resetButton = new Button { Text = "Reset to Default" };
+        _resetButton.Click += (_, _) =>
+        {
+            if (_material is not null)
+                ResetToDefaultRequested?.Invoke(_material);
+        };
+
         _deactivateButton = new Button { Text = "Deactivate" };
         _deactivateButton.Click += (_, _) =>
         {
@@ -95,7 +105,7 @@ public class MaterialDetails : Card
         {
             Orientation = Orientation.Horizontal,
             Spacing = 8,
-            Items = { _editButton, _deactivateButton }
+            Items = { _editButton, _resetButton, _deactivateButton }
         };
 
         WithContent(
@@ -113,9 +123,17 @@ public class MaterialDetails : Card
         SetButtonsEnabled(false);
     }
 
-    public void ShowMaterial(Material material)
+    /// <summary>
+    /// hasDefault controls whether "Reset to Default" is enabled - there's
+    /// nothing to reset a custom (or renamed) material back to. statusMessage
+    /// overrides the usual blank status line, e.g. to confirm a reset just
+    /// happened, since that also comes through here to refresh the displayed
+    /// fields.
+    /// </summary>
+    public void ShowMaterial(Material material, bool hasDefault, string? statusMessage = null)
     {
         _material = material;
+        _hasDefault = hasDefault;
 
         _name.Value = material.Name;
         _category.Value = material.Category.ToString();
@@ -126,7 +144,7 @@ public class MaterialDetails : Card
             : material.Notes;
 
         _colorSwatch.BackgroundColor = Color.FromArgb(material.ColorR, material.ColorG, material.ColorB);
-        _applyStatusLabel.Text = string.Empty;
+        _applyStatusLabel.Text = statusMessage ?? string.Empty;
 
         SetButtonsEnabled(true);
     }
@@ -138,6 +156,7 @@ public class MaterialDetails : Card
     public void Clear()
     {
         _material = null;
+        _hasDefault = false;
 
         _name.Value = "-";
         _category.Value = "-";
@@ -186,6 +205,7 @@ public class MaterialDetails : Card
     private void SetButtonsEnabled(bool enabled)
     {
         _editButton.Enabled = enabled;
+        _resetButton.Enabled = enabled && _hasDefault;
         _deactivateButton.Enabled = enabled;
         _applyButton.Enabled = enabled;
     }

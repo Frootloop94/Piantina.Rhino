@@ -25,10 +25,12 @@ public class MaterialsView : Panel
         _materialList = new MaterialList(_materialService);
         _materialDetails = new MaterialDetails();
 
-        _materialList.MaterialSelected += _materialDetails.ShowMaterial;
+        _materialList.MaterialSelected += material =>
+            _materialDetails.ShowMaterial(material, _materialService.HasDefault(material));
         _materialList.MaterialDoubleClicked += _ => _materialDetails.ApplyToSelection();
         _materialDetails.EditRequested += OpenEditMaterialDialog;
         _materialDetails.DeactivateRequested += DeactivateMaterial;
+        _materialDetails.ResetToDefaultRequested += ResetMaterialToDefault;
 
         _gemstoneService = new GemstoneService();
 
@@ -124,7 +126,7 @@ public class MaterialsView : Panel
         _materialService.NotifyMaterialUpdated();
 
         _materialList.Refresh(result.Id);
-        _materialDetails.ShowMaterial(result);
+        _materialDetails.ShowMaterial(result, _materialService.HasDefault(result));
     }
 
     private void DeactivateMaterial(Material material)
@@ -133,6 +135,24 @@ public class MaterialsView : Panel
 
         _materialList.Refresh();
         _materialDetails.Clear();
+    }
+
+    /// <summary>
+    /// Material is a reference type, so ResetToDefault() mutates the same
+    /// instance the list and details panel already hold - refreshing and
+    /// re-showing it is enough, no re-fetch needed. Only reachable while
+    /// "Reset to Default" is enabled, which already requires HasDefault(), so
+    /// this should always succeed - but if the material got deactivated/
+    /// removed from under the user between showing it and clicking Reset,
+    /// silently do nothing rather than show a stale/incorrect confirmation.
+    /// </summary>
+    private void ResetMaterialToDefault(Material material)
+    {
+        if (!_materialService.ResetToDefault(material.Id))
+            return;
+
+        _materialList.Refresh(material.Id);
+        _materialDetails.ShowMaterial(material, hasDefault: true, statusMessage: "Reset to its default values.");
     }
 
     private void OpenEditGemDialog(Gemstone existing)

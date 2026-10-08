@@ -264,6 +264,57 @@ public class MaterialService
         return repaired;
     }
 
+    /// <summary>
+    /// True if this material's name matches a built-in default, meaning
+    /// ResetToDefault() has something to reset it back to. False for anything
+    /// the user added themselves, or a built-in they've since renamed - used
+    /// to grey out the "Reset to Default" button rather than let it silently
+    /// do nothing.
+    /// </summary>
+    public bool HasDefault(Material material) =>
+        GetDefaultMaterials().Any(d => string.Equals(d.Name, material.Name, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Resets a single material's catalog-defined fields - category, density,
+    /// and appearance (colour/reflectivity/shine) - back to the current
+    /// built-in default for its name, undoing an accidental or exploratory
+    /// edit in MaterialEditorDialog. Deliberately leaves PricePerGram (the
+    /// business's own pricing, never set by a default - see
+    /// GetDefaultMaterials) and Notes (the user's own annotation) untouched,
+    /// and leaves Name/IsActive/SortOrder alone too. No-op, returning false,
+    /// if the material isn't found or its name doesn't match a built-in
+    /// default.
+    /// </summary>
+    public bool ResetToDefault(Guid materialId)
+    {
+        var material = _materials.FirstOrDefault(m => m.Id == materialId);
+
+        if (material is null)
+        {
+            return false;
+        }
+
+        var defaultMaterial = GetDefaultMaterials()
+            .FirstOrDefault(d => string.Equals(d.Name, material.Name, StringComparison.OrdinalIgnoreCase));
+
+        if (defaultMaterial is null)
+        {
+            return false;
+        }
+
+        material.Category = defaultMaterial.Category;
+        material.Density = defaultMaterial.Density;
+        material.ColorR = defaultMaterial.ColorR;
+        material.ColorG = defaultMaterial.ColorG;
+        material.ColorB = defaultMaterial.ColorB;
+        material.Reflectivity = defaultMaterial.Reflectivity;
+        material.Shine = defaultMaterial.Shine;
+
+        Persist();
+
+        return true;
+    }
+
     public IReadOnlyList<Material> GetMaterials(bool includeInactive = false)
     {
         return _materials
