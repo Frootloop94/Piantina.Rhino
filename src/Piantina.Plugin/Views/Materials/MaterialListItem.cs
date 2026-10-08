@@ -12,6 +12,11 @@ namespace Piantina.Plugin.Views.Materials;
 /// </summary>
 public class MaterialListItem : Panel
 {
+    // Shared with MaterialList, which derives its column count from this -
+    // keep the two in sync rather than letting the grid guess a tile size.
+    public const int TileWidth = 64;
+    private const int SwatchWidth = 56;
+
     public event EventHandler? Selected;
 
     public event EventHandler? DoubleClicked;
@@ -45,8 +50,8 @@ public class MaterialListItem : Panel
     {
         Material = material;
 
-        Width = 72;
-        Height = 64;
+        Width = TileWidth;
+        Height = 56;
 
         Padding = 4;
 
@@ -54,8 +59,8 @@ public class MaterialListItem : Panel
 
         _swatch = new Panel
         {
-            Width = 64,
-            Height = 40,
+            Width = SwatchWidth,
+            Height = 34,
             BackgroundColor = Color.FromArgb(material.ColorR, material.ColorG, material.ColorB)
         };
 

@@ -45,8 +45,8 @@ public class InfoRow : Panel
             Rows =
     {
         new TableRow(
-            new TableCell(_label, true),
-            new TableCell(_value, false))
+            new TableCell(_label, false),
+            new TableCell(_value, true))
     }
         };
     }

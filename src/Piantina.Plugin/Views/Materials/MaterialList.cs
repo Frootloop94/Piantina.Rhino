@@ -8,7 +8,15 @@ namespace Piantina.Plugin.Views.Materials;
 
 public class MaterialList : Card
 {
-    private const int Columns = 3;
+    // Matches MaterialListItem's own tile Width plus the grid's column
+    // spacing, so column count can be derived from however much width is
+    // actually available rather than a fixed guess - a narrow docked panel
+    // gets fewer, taller columns instead of clipping a column that doesn't
+    // fit (what a hardcoded column count used to do).
+    private const int TileWidth = MaterialListItem.TileWidth;
+    private const int GridSpacing = 8;
+    private const int MinColumns = 1;
+    private const int FallbackColumns = 3;
 
     public event Action<Material>? MaterialSelected;
 
@@ -31,11 +39,36 @@ public class MaterialList : Card
 
         _materialHost = new Panel();
 
+        // Re-flows the grid's column count on every resize (e.g. the user
+        // dragging the docked panel wider/narrower), not just on the next
+        // search/selection-driven rebuild.
+        _materialHost.SizeChanged += (_, _) => BuildMaterialList(_searchBox.Text);
+
         WithContent(
             _searchBox,
             _materialHost);
 
         BuildMaterialList();
+    }
+
+    /// <summary>
+    /// How many tiles fit per row at the host's current width. Falls back to
+    /// a sane default before the control has been through a layout pass
+    /// (Width is 0/unset at construction time) - Refresh()/the SizeChanged
+    /// handler above correct this to a real value as soon as it's shown.
+    /// </summary>
+    private int ComputeColumns()
+    {
+        var availableWidth = _materialHost.Width;
+
+        if (availableWidth <= 0)
+        {
+            return FallbackColumns;
+        }
+
+        var columns = (availableWidth + GridSpacing) / (TileWidth + GridSpacing);
+
+        return Math.Max(MinColumns, columns);
     }
 
     /// <summary>
@@ -78,6 +111,8 @@ public class MaterialList : Card
             .GroupBy(GetGroupLabel)
             .OrderBy(group => group.Min(material => material.SortOrder));
 
+        var columns = ComputeColumns();
+
         foreach (var group in groups)
         {
             var materials = group
@@ -97,14 +132,14 @@ public class MaterialList : Card
             var grid = new TableLayout
             {
                 Padding = 0,
-                Spacing = new Size(8, 8)
+                Spacing = new Size(GridSpacing, GridSpacing)
             };
 
-            for (var i = 0; i < materials.Count; i += Columns)
+            for (var i = 0; i < materials.Count; i += columns)
             {
                 var row = new TableRow();
 
-                for (var column = 0; column < Columns; column++)
+                for (var column = 0; column < columns; column++)
                 {
                     if (i + column >= materials.Count)
                     {
