@@ -16,6 +16,9 @@ public class MaterialsView : Panel
     private readonly GemList _gemList;
     private readonly GemDetails _gemDetails;
 
+    private readonly Scrollable _materialScrollable;
+    private readonly Scrollable _gemScrollable;
+
     public MaterialsView()
     {
         Padding = 20;
@@ -48,17 +51,17 @@ public class MaterialsView : Panel
         // way.
         var tabControl = new TabControl();
 
-        tabControl.Pages.Add(new TabPage
-        {
-            Text = "Metal",
-            Content = BuildSection(_materialList, _materialDetails, _materialList.SetAvailableWidth)
-        });
+        var (metalSection, materialScrollable) = BuildSection(_materialList, _materialDetails);
+        _materialScrollable = materialScrollable;
 
-        tabControl.Pages.Add(new TabPage
-        {
-            Text = "Gems",
-            Content = BuildSection(_gemList, _gemDetails, _gemList.SetAvailableWidth)
-        });
+        var (gemSection, gemScrollable) = BuildSection(_gemList, _gemDetails);
+        _gemScrollable = gemScrollable;
+
+        _materialScrollable.SizeChanged += (_, _) => UpdateAvailableWidth();
+        _gemScrollable.SizeChanged += (_, _) => UpdateAvailableWidth();
+
+        tabControl.Pages.Add(new TabPage { Text = "Metal", Content = metalSection });
+        tabControl.Pages.Add(new TabPage { Text = "Gems", Content = gemSection });
 
         Content = new StackLayout
         {
@@ -70,21 +73,38 @@ public class MaterialsView : Panel
                 new StackLayoutItem(tabControl, true)
             }
         };
+
+        // A Scrollable's own SizeChanged covers most resizes, but on some
+        // hosts (Rhino's docked-panel embedding included) it doesn't fire
+        // reliably on its own - LoadComplete gives one extra, guaranteed
+        // chance to pick up the real width once this view actually has one.
+        LoadComplete += (_, _) =>
+            Application.Instance.AsyncInvoke(UpdateAvailableWidth);
+    }
+
+    /// <summary>
+    /// Re-reads both scrollable regions' current viewport width and passes it
+    /// to the matching list, so its grid can re-flow its column count. Called
+    /// from here on LoadComplete, from each Scrollable's own SizeChanged
+    /// below, and from PiantinaPanel whenever the whole docked panel resizes
+    /// (the one resize this view is guaranteed to hear about, since Rhino's
+    /// docking manager resizes that control directly).
+    /// </summary>
+    public void UpdateAvailableWidth()
+    {
+        _materialList.SetAvailableWidth(_materialScrollable.ClientSize.Width);
+        _gemList.SetAvailableWidth(_gemScrollable.ClientSize.Width);
     }
 
     /// <summary>
     /// The list scrolls in its own region rather than the whole tab scrolling
     /// as one long page, so Details stays pinned and visible at the bottom
     /// instead of getting scrolled out of view. Same layout for both the
-    /// Metal and Gems sub-tabs.
-    ///
-    /// onWidthChanged, when given, is fed the Scrollable's own ClientSize as
-    /// it resizes - a plain content Panel's Width getter doesn't reliably
-    /// reflect its rendered size in Eto, but a Scrollable's ClientSize is the
-    /// real, dependable visible-viewport width, which MaterialList/GemList
-    /// use to decide how many tile columns fit.
+    /// Metal and Gems sub-tabs. Returns the Scrollable alongside the built
+    /// section so the caller can read its ClientSize later (UpdateAvailableWidth)
+    /// and listen for its own resizes.
     /// </summary>
-    private static Control BuildSection(Control list, Control details, Action<int>? onWidthChanged = null)
+    private static (Control Section, Scrollable Scrollable) BuildSection(Control list, Control details)
     {
         var scrollableList = new Scrollable
         {
@@ -92,12 +112,7 @@ public class MaterialsView : Panel
             Border = BorderType.None
         };
 
-        if (onWidthChanged is not null)
-        {
-            scrollableList.SizeChanged += (_, _) => onWidthChanged(scrollableList.ClientSize.Width);
-        }
-
-        return new StackLayout
+        var section = new StackLayout
         {
             Spacing = 16,
 
@@ -107,6 +122,8 @@ public class MaterialsView : Panel
                 details
             }
         };
+
+        return (section, scrollableList);
     }
 
     /// <summary>

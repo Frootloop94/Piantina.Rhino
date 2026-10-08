@@ -63,10 +63,21 @@ public class PiantinaPanel : Panel
                 _tabControl.SelectedIndex == materialsIndex)
             {
                 _materialsView?.Refresh();
+                _materialsView?.UpdateAvailableWidth();
             }
         };
 
         Content = _tabControl;
+
+        // This panel is the control Rhino's docking manager actually resizes
+        // when the user drags the sidebar wider/narrower, so its SizeChanged
+        // is the one resize notification this plugin can rely on - nested
+        // Scrollables further down don't always get their own. AsyncInvoke
+        // defers the read until just after this resize has finished
+        // propagating through the layout, so the Materials grid measures its
+        // real new width rather than a stale one.
+        SizeChanged += (_, _) =>
+            Eto.Forms.Application.Instance.AsyncInvoke(() => _materialsView?.UpdateAvailableWidth());
     }
 
     /// <summary>
