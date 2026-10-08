@@ -73,10 +73,12 @@ public class GemDetails : Card
                 DeactivateRequested?.Invoke(_gemstone);
         };
 
+        // Vertical, not side by side - matches MaterialDetails' button row,
+        // which switched to stacked for the same narrow-sidebar reasons.
         var buttonRow = new StackLayout
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
+            Orientation = Orientation.Vertical,
+            Spacing = 6,
             Items = { _editButton, _deactivateButton }
         };
 
