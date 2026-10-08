@@ -8,9 +8,12 @@ namespace Piantina.Plugin.Views.Gems;
 
 /// <summary>
 /// Mirrors MaterialList's tile-grid layout and search/select/refresh
-/// behaviour. Grouping is simpler than materials: gems don't have a "24ct"-
-/// style name prefix to derive a group from, so tiles are grouped directly
-/// by GemCategory (Diamond, Ruby, Sapphire, ...).
+/// behaviour, but without MaterialList's per-group sections: most gem
+/// categories only have a single gemstone in the default catalog, so
+/// grouping by GemCategory the way MaterialList groups by karat would mean
+/// almost every group renders a single lonely tile instead of a filled-out
+/// grid. All active gems just tile together in one continuous grid instead,
+/// ordered the same way the groups used to be (by SortOrder, then name).
 /// </summary>
 public class GemList : Card
 {
@@ -105,76 +108,57 @@ public class GemList : Card
             Spacing = new Size(0, 12)
         };
 
-        var matchingGems = _service.GetGemstones()
+        var gemstones = _service.GetGemstones()
             .Where(gemstone => gemstone.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(gemstone => gemstone.SortOrder)
+            .ThenBy(gemstone => gemstone.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var groups = matchingGems
-            .GroupBy(gemstone => gemstone.Category)
-            .OrderBy(group => group.Min(gemstone => gemstone.SortOrder));
-
-        foreach (var group in groups)
+        var grid = new TableLayout
         {
-            var gemstones = group
-                .OrderBy(gemstone => gemstone.SortOrder)
-                .ThenBy(gemstone => gemstone.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            Padding = 0,
+            Spacing = new Size(GridSpacing, GridSpacing)
+        };
 
-            var groupLabel = new Label
+        var columns = ComputeColumns();
+
+        for (var i = 0; i < gemstones.Count; i += columns)
+        {
+            var row = new TableRow();
+
+            for (var column = 0; column < columns; column++)
             {
-                Text = group.Key.ToString(),
-                Font = AppFonts.Heading,
-                TextColor = AppColors.Text
-            };
-
-            layout.AddRow(groupLabel);
-
-            var grid = new TableLayout
-            {
-                Padding = 0,
-                Spacing = new Size(GridSpacing, GridSpacing)
-            };
-
-            var columns = ComputeColumns();
-
-            for (var i = 0; i < gemstones.Count; i += columns)
-            {
-                var row = new TableRow();
-
-                for (var column = 0; column < columns; column++)
+                if (i + column >= gemstones.Count)
                 {
-                    if (i + column >= gemstones.Count)
-                    {
-                        // A real control, not null - see MaterialList's
-                        // identical comment: a column with nothing but null
-                        // cells across a group's grid collapses to zero width
-                        // in Eto's TableLayout, which made single-gem
-                        // categories (most of them, here) render narrower
-                        // than the Materials tab's grid.
-                        row.Cells.Add(new Panel { Width = TileWidth });
-                        continue;
-                    }
-
-                    var gemstone = gemstones[i + column];
-                    var item = new GemListItem(gemstone);
-
-                    item.Selected += Gem_Selected;
-                    item.DoubleClicked += Gem_DoubleClicked;
-
-                    if (_selectedGemId == gemstone.Id)
-                    {
-                        item.Select();
-                        _selectedItem = item;
-                    }
-
-                    row.Cells.Add(item);
+                    // A real control, not null - a column with nothing but
+                    // null cells across the whole grid collapses to zero
+                    // width in Eto's TableLayout, which is what made the
+                    // last, short row (and previously, every single-gem
+                    // category's own grid) render narrower than a fully
+                    // populated row.
+                    row.Cells.Add(new Panel { Width = TileWidth });
+                    continue;
                 }
 
-                grid.Rows.Add(row);
+                var gemstone = gemstones[i + column];
+                var item = new GemListItem(gemstone);
+
+                item.Selected += Gem_Selected;
+                item.DoubleClicked += Gem_DoubleClicked;
+
+                if (_selectedGemId == gemstone.Id)
+                {
+                    item.Select();
+                    _selectedItem = item;
+                }
+
+                row.Cells.Add(item);
             }
 
-            layout.AddRow(grid);
+            grid.Rows.Add(row);
         }
+
+        layout.AddRow(grid);
 
         _gemHost.Content = layout;
     }
