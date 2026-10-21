@@ -53,4 +53,28 @@ public static class CastingCalculator
     {
         return metalWeightGrams * pricePerGram;
     }
+
+    /// <summary>
+    /// The business's standing rate for 3D-printing a wax model, in Rand per
+    /// mm³. A flat rate rather than something configurable per-quote, since
+    /// it's the same print service/cost regardless of the job.
+    /// </summary>
+    public const decimal DefaultWaxPrintRatePerMm3 = 0.55m;
+
+    /// <summary>
+    /// The business's standing casting fee (labour/overhead to actually cast
+    /// the metal, separate from the metal's own material cost), in Rand per
+    /// gram of metal cast.
+    /// </summary>
+    public const decimal DefaultCastingFeeRatePerGram = 30.00m;
+
+    public static decimal CalculateWaxPrintCost(decimal volumeMm3, decimal ratePerMm3 = DefaultWaxPrintRatePerMm3)
+    {
+        return volumeMm3 * ratePerMm3;
+    }
+
+    public static decimal CalculateCastingFee(decimal metalWeightGrams, decimal ratePerGram = DefaultCastingFeeRatePerGram)
+    {
+        return metalWeightGrams * ratePerGram;
+    }
 }

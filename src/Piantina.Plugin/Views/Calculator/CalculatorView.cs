@@ -22,9 +22,8 @@ public class CalculatorView : Panel
     // for its rebuildable list via _materialHost.
     private readonly Panel _dynamicFieldsHost;
 
-    // Manual wax weight mode
-    private readonly NumericStepper _waxWeightStepper;
-    private readonly NumericStepper _waxDensityStepper;
+    // Manual volume mode
+    private readonly NumericStepper _waxVolumeStepper;
 
     // From Rhino selection mode
     private readonly PrimaryButton _getVolumeButton;
@@ -33,6 +32,21 @@ public class CalculatorView : Panel
 
     private readonly InfoRow _metalWeightRow;
     private readonly InfoRow _costRow;
+
+    // Quick Quote - Design Fee is the only field entered directly here; Wax
+    // print and Casting fee are the business's own standing rates (see
+    // CastingCalculator) applied to the volume/weight already worked out
+    // above, and Metal cost just mirrors the Result card's own cost, so nothing
+    // has to be re-entered or can drift out of sync with the calculator above it.
+    private readonly NumericStepper _designFeeStepper;
+    private readonly InfoRow _waxPrintRow;
+    private readonly InfoRow _castingFeeRow;
+    private readonly InfoRow _quoteMetalCostRow;
+    private readonly InfoRow _totalQuoteRow;
+
+    private decimal? _lastVolumeMm3;
+    private decimal? _lastMetalWeight;
+    private decimal? _lastMetalCost;
 
     private List<Material> _materials = new();
 
@@ -44,7 +58,7 @@ public class CalculatorView : Panel
 
         _materialDropDown = new DropDown { Font = AppFonts.Body };
 
-        // Vertical, not horizontal - "Manual wax weight" and "From Rhino
+        // Vertical, not horizontal - "Manual volume (mm³)" and "From Rhino
         // selection" side by side need more width than a narrow docked
         // sidebar has, which was forcing the whole tab to scroll
         // horizontally and clip content at both edges.
@@ -52,28 +66,18 @@ public class CalculatorView : Panel
         {
             Orientation = Orientation.Vertical,
             Spacing = new Size(0, 6),
-            Items = { "Manual wax weight", "From Rhino selection" }
+            Items = { "Manual volume (mm³)", "From Rhino selection" }
         };
         _modeSelector.SelectedIndex = 0;
 
-        _waxWeightStepper = new NumericStepper
+        _waxVolumeStepper = new NumericStepper
         {
             Font = AppFonts.Body,
-            DecimalPlaces = 2,
+            DecimalPlaces = 1,
             MinValue = 0,
-            MaxValue = 10000,
-            Increment = 0.1,
+            MaxValue = 1_000_000,
+            Increment = 10,
             Value = 0
-        };
-
-        _waxDensityStepper = new NumericStepper
-        {
-            Font = AppFonts.Body,
-            DecimalPlaces = 2,
-            MinValue = 0.01,
-            MaxValue = 5,
-            Increment = 0.01,
-            Value = (double)CastingCalculator.DefaultWaxDensity
         };
 
         _getVolumeButton = new PrimaryButton("Use Selected Object", UseSelectedObjectVolume);
@@ -102,9 +106,33 @@ public class CalculatorView : Panel
                 _metalWeightRow,
                 _costRow);
 
+        _designFeeStepper = new NumericStepper
+        {
+            Font = AppFonts.Body,
+            DecimalPlaces = 2,
+            MinValue = 0,
+            MaxValue = 1_000_000,
+            Increment = 50,
+            Value = 0
+        };
+
+        _waxPrintRow = new InfoRow("Wax print", "-");
+        _castingFeeRow = new InfoRow("Casting fee", "-");
+        _quoteMetalCostRow = new InfoRow("Metal cost", "-");
+        _totalQuoteRow = new InfoRow("Total Quote", "-");
+
+        var quoteCard = new Card("Quick Quote")
+            .WithContent(
+                FieldLabel("Design Fee (R)"),
+                _designFeeStepper,
+                _waxPrintRow,
+                _castingFeeRow,
+                _quoteMetalCostRow,
+                _totalQuoteRow);
+
         // Stacked vertically rather than side by side: this panel is meant to
-        // dock as a narrow sidebar, where there isn't room for the input and
-        // result cards to sit next to each other.
+        // dock as a narrow sidebar, where there isn't room for the cards to
+        // sit next to each other.
         var layout = new DynamicLayout
         {
             Spacing = new Size(0, 20)
@@ -112,6 +140,7 @@ public class CalculatorView : Panel
 
         layout.AddRow(inputCard);
         layout.AddRow(resultCard);
+        layout.AddRow(quoteCard);
 
         Content = new StackLayout
         {
@@ -126,8 +155,8 @@ public class CalculatorView : Panel
 
         _materialDropDown.SelectedKeyChanged += (_, _) => Recalculate();
         _modeSelector.SelectedIndexChanged += (_, _) => RebuildDynamicFields();
-        _waxWeightStepper.ValueChanged += (_, _) => Recalculate();
-        _waxDensityStepper.ValueChanged += (_, _) => Recalculate();
+        _waxVolumeStepper.ValueChanged += (_, _) => Recalculate();
+        _designFeeStepper.ValueChanged += (_, _) => UpdateQuote();
 
         LoadMaterials();
         RebuildDynamicFields();
@@ -184,10 +213,13 @@ public class CalculatorView : Panel
                 Spacing = 8,
                 Items =
                 {
-                    FieldLabel("Wax weight (g)"),
-                    _waxWeightStepper,
-                    FieldLabel("Wax density (g/cm³)"),
-                    _waxDensityStepper
+                    // mm³, not grams - the business sometimes can't get a
+                    // reliable volume straight out of Rhino and instead
+                    // exports to Materialise to get it there, so this takes
+                    // the volume directly rather than a weight that would
+                    // need converting back through an assumed wax density.
+                    FieldLabel("Wax volume (mm³)"),
+                    _waxVolumeStepper
                 }
             };
 
@@ -218,46 +250,81 @@ public class CalculatorView : Panel
 
         if (material is null)
         {
-            SetResult(null, null);
+            SetResult(null, null, null);
             return;
         }
 
-        decimal metalWeight;
+        // Both modes resolve to a volume in cm³ first - "manual" just starts
+        // from mm³ (what the business actually has on hand day to day) and
+        // converts, rather than the old gram-plus-assumed-wax-density path.
+        decimal volumeCm3;
 
         if (_modeSelector.SelectedIndex == 1)
         {
             if (_selectedVolumeCm3 is null || _selectedVolumeCm3 <= 0)
             {
-                SetResult(null, null);
+                SetResult(null, null, null);
                 return;
             }
 
-            metalWeight = CastingCalculator.CalculateMetalWeightFromVolume(
-                _selectedVolumeCm3.Value,
-                material.Density);
+            volumeCm3 = _selectedVolumeCm3.Value;
         }
         else
         {
-            var waxWeight = (decimal)_waxWeightStepper.Value;
-            var waxDensity = (decimal)_waxDensityStepper.Value;
+            var waxVolumeMm3 = (decimal)_waxVolumeStepper.Value;
 
-            if (waxWeight <= 0 || waxDensity <= 0)
+            if (waxVolumeMm3 <= 0)
             {
-                SetResult(null, null);
+                SetResult(null, null, null);
                 return;
             }
 
-            metalWeight = CastingCalculator.CalculateMetalWeight(waxWeight, material.Density, waxDensity);
+            volumeCm3 = waxVolumeMm3 / 1000m;
         }
 
+        var metalWeight = CastingCalculator.CalculateMetalWeightFromVolume(volumeCm3, material.Density);
         var cost = CastingCalculator.CalculateCost(metalWeight, material.PricePerGram);
 
-        SetResult(metalWeight, cost);
+        SetResult(volumeCm3 * 1000m, metalWeight, cost);
     }
 
-    private void SetResult(decimal? metalWeight, decimal? cost)
+    private void SetResult(decimal? volumeMm3, decimal? metalWeight, decimal? cost)
     {
         _metalWeightRow.Value = metalWeight is null ? "-" : $"{metalWeight:0.00} g";
         _costRow.Value = cost is null ? "-" : $"R {cost:N2}";
+
+        _lastVolumeMm3 = volumeMm3;
+        _lastMetalWeight = metalWeight;
+        _lastMetalCost = cost;
+
+        UpdateQuote();
+    }
+
+    /// <summary>
+    /// Recomputes the Quick Quote card from the business's standing rates
+    /// (CastingCalculator.DefaultWaxPrintRatePerMm3/DefaultCastingFeeRatePerGram)
+    /// applied to the Calculator's own last result, plus whatever Design Fee
+    /// is currently entered. Called after every Recalculate() (so it tracks
+    /// the Calculator above it) and on its own when just the Design Fee
+    /// changes.
+    /// </summary>
+    private void UpdateQuote()
+    {
+        var designFee = (decimal)_designFeeStepper.Value;
+
+        var waxPrintCost = _lastVolumeMm3 is { } volumeMm3
+            ? CastingCalculator.CalculateWaxPrintCost(volumeMm3)
+            : (decimal?)null;
+
+        var castingFee = _lastMetalWeight is { } metalWeight
+            ? CastingCalculator.CalculateCastingFee(metalWeight)
+            : (decimal?)null;
+
+        _waxPrintRow.Value = waxPrintCost is null ? "-" : $"R {waxPrintCost:N2}";
+        _castingFeeRow.Value = castingFee is null ? "-" : $"R {castingFee:N2}";
+        _quoteMetalCostRow.Value = _lastMetalCost is null ? "-" : $"R {_lastMetalCost:N2}";
+
+        var total = designFee + (waxPrintCost ?? 0) + (castingFee ?? 0) + (_lastMetalCost ?? 0);
+        _totalQuoteRow.Value = $"R {total:N2}";
     }
 }
