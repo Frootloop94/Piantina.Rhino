@@ -30,8 +30,29 @@ public class CalculatorView : Panel
     private readonly Label _volumeValueLabel;
     private decimal? _selectedVolumeCm3;
 
+    // Second metal - fixed to exactly one extra metal (not an open-ended
+    // list) since that covers the business's actual case ("sometimes two
+    // metals part of the quote") without the extra UI an arbitrary-length
+    // list would need in a narrow sidebar. Manual volume entry only, no
+    // "From Rhino selection" mode of its own - picking which of two
+    // selected solids is which metal adds real complexity for a case that's
+    // already the exception rather than the rule.
+    private readonly CheckBox _secondMetalCheckBox;
+    private readonly DropDown _material2DropDown;
+    private readonly NumericStepper _volume2Stepper;
+    private readonly Panel _secondMetalInputHost;
+
     private readonly InfoRow _metalWeightRow;
     private readonly InfoRow _costRow;
+
+    // Only populated (via _secondMetalResultHost.Content) while
+    // _secondMetalCheckBox is checked and resolves to a real result - see
+    // SetResult().
+    private readonly Panel _secondMetalResultHost;
+    private readonly InfoRow _metal2WeightRow;
+    private readonly InfoRow _metal2CostRow;
+    private readonly InfoRow _totalWeightRow;
+    private readonly InfoRow _totalMetalCostRow;
 
     // Quick Quote - Design Fee is the only field entered directly here; Wax
     // print and Casting fee are the business's own standing rates (see
@@ -91,20 +112,45 @@ public class CalculatorView : Panel
 
         _dynamicFieldsHost = new Panel();
 
+        _secondMetalCheckBox = new CheckBox { Text = "Add second metal" };
+
+        _material2DropDown = new DropDown { Font = AppFonts.Body };
+
+        _volume2Stepper = new NumericStepper
+        {
+            Font = AppFonts.Body,
+            DecimalPlaces = 1,
+            MinValue = 0,
+            MaxValue = 1_000_000,
+            Increment = 10,
+            Value = 0
+        };
+
+        _secondMetalInputHost = new Panel();
+
         var inputCard = new Card("Casting Calculator")
             .WithContent(
                 FieldLabel("Material"),
                 _materialDropDown,
                 _modeSelector,
-                _dynamicFieldsHost);
+                _dynamicFieldsHost,
+                _secondMetalCheckBox,
+                _secondMetalInputHost);
 
         _metalWeightRow = new InfoRow("Metal weight", "-");
         _costRow = new InfoRow("Estimated cost", "-");
 
+        _metal2WeightRow = new InfoRow("Metal 2 weight", "-");
+        _metal2CostRow = new InfoRow("Metal 2 cost", "-");
+        _totalWeightRow = new InfoRow("Total weight", "-");
+        _totalMetalCostRow = new InfoRow("Total metal cost", "-");
+        _secondMetalResultHost = new Panel();
+
         var resultCard = new Card("Result")
             .WithContent(
                 _metalWeightRow,
-                _costRow);
+                _costRow,
+                _secondMetalResultHost);
 
         _designFeeStepper = new NumericStepper
         {
@@ -156,10 +202,14 @@ public class CalculatorView : Panel
         _materialDropDown.SelectedKeyChanged += (_, _) => Recalculate();
         _modeSelector.SelectedIndexChanged += (_, _) => RebuildDynamicFields();
         _waxVolumeStepper.ValueChanged += (_, _) => Recalculate();
+        _secondMetalCheckBox.CheckedChanged += (_, _) => RebuildSecondMetalFields();
+        _material2DropDown.SelectedKeyChanged += (_, _) => Recalculate();
+        _volume2Stepper.ValueChanged += (_, _) => Recalculate();
         _designFeeStepper.ValueChanged += (_, _) => UpdateQuote();
 
         LoadMaterials();
         RebuildDynamicFields();
+        RebuildSecondMetalFields();
     }
 
     private static Label FieldLabel(string text) => new()
@@ -174,19 +224,18 @@ public class CalculatorView : Panel
         _materials = _materialService.GetMaterials().ToList();
 
         _materialDropDown.Items.Clear();
+        _material2DropDown.Items.Clear();
 
         foreach (var material in _materials)
         {
-            _materialDropDown.Items.Add(new ListItem
-            {
-                Text = material.Name,
-                Key = material.Id.ToString()
-            });
+            _materialDropDown.Items.Add(new ListItem { Text = material.Name, Key = material.Id.ToString() });
+            _material2DropDown.Items.Add(new ListItem { Text = material.Name, Key = material.Id.ToString() });
         }
 
         if (_materials.Count > 0)
         {
             _materialDropDown.SelectedKey = _materials[0].Id.ToString();
+            _material2DropDown.SelectedKey = _materials[0].Id.ToString();
         }
     }
 
@@ -226,6 +275,30 @@ public class CalculatorView : Panel
         Recalculate();
     }
 
+    /// <summary>
+    /// Swaps _secondMetalInputHost's content between empty and the
+    /// Material 2/Volume 2 fields, following _secondMetalCheckBox - same
+    /// wholesale-Content-replace pattern as RebuildDynamicFields() above.
+    /// </summary>
+    private void RebuildSecondMetalFields()
+    {
+        _secondMetalInputHost.Content = _secondMetalCheckBox.Checked == true
+            ? new StackLayout
+            {
+                Spacing = 8,
+                Items =
+                {
+                    FieldLabel("Material 2"),
+                    _material2DropDown,
+                    FieldLabel("Volume 2 (mm³)"),
+                    _volume2Stepper
+                }
+            }
+            : null;
+
+        Recalculate();
+    }
+
     private void UseSelectedObjectVolume()
     {
         var volume = RhinoGeometryService.GetSelectedVolumeInCubicCentimetres();
@@ -243,59 +316,107 @@ public class CalculatorView : Panel
         Recalculate();
     }
 
-    private void Recalculate()
+    private record MetalResult(decimal VolumeMm3, decimal Weight, decimal Cost);
+
+    /// <summary>
+    /// Resolves one metal's volume (cm³) against a material to a full
+    /// result, or null if either input isn't usable yet - shared by the
+    /// primary material/mode and the optional second metal.
+    /// </summary>
+    private MetalResult? ComputeMetalResult(string? materialKey, decimal? volumeCm3)
     {
-        var material = _materials.FirstOrDefault(m =>
-            m.Id.ToString() == _materialDropDown.SelectedKey);
+        if (volumeCm3 is not { } v || v <= 0)
+        {
+            return null;
+        }
+
+        var material = _materials.FirstOrDefault(m => m.Id.ToString() == materialKey);
 
         if (material is null)
         {
-            SetResult(null, null, null);
-            return;
+            return null;
         }
 
+        var weight = CastingCalculator.CalculateMetalWeightFromVolume(v, material.Density);
+        var cost = CastingCalculator.CalculateCost(weight, material.PricePerGram);
+
+        return new MetalResult(v * 1000m, weight, cost);
+    }
+
+    private void Recalculate()
+    {
         // Both modes resolve to a volume in cm³ first - "manual" just starts
         // from mm³ (what the business actually has on hand day to day) and
         // converts, rather than the old gram-plus-assumed-wax-density path.
-        decimal volumeCm3;
+        decimal? primaryVolumeCm3;
 
         if (_modeSelector.SelectedIndex == 1)
         {
-            if (_selectedVolumeCm3 is null || _selectedVolumeCm3 <= 0)
-            {
-                SetResult(null, null, null);
-                return;
-            }
-
-            volumeCm3 = _selectedVolumeCm3.Value;
+            primaryVolumeCm3 = _selectedVolumeCm3;
         }
         else
         {
             var waxVolumeMm3 = (decimal)_waxVolumeStepper.Value;
-
-            if (waxVolumeMm3 <= 0)
-            {
-                SetResult(null, null, null);
-                return;
-            }
-
-            volumeCm3 = waxVolumeMm3 / 1000m;
+            primaryVolumeCm3 = waxVolumeMm3 > 0 ? waxVolumeMm3 / 1000m : null;
         }
 
-        var metalWeight = CastingCalculator.CalculateMetalWeightFromVolume(volumeCm3, material.Density);
-        var cost = CastingCalculator.CalculateCost(metalWeight, material.PricePerGram);
+        var metal1 = ComputeMetalResult(_materialDropDown.SelectedKey, primaryVolumeCm3);
 
-        SetResult(volumeCm3 * 1000m, metalWeight, cost);
+        MetalResult? metal2 = null;
+
+        if (_secondMetalCheckBox.Checked == true)
+        {
+            var volume2Mm3 = (decimal)_volume2Stepper.Value;
+            var volume2Cm3 = volume2Mm3 > 0 ? volume2Mm3 / 1000m : (decimal?)null;
+
+            metal2 = ComputeMetalResult(_material2DropDown.SelectedKey, volume2Cm3);
+        }
+
+        SetResult(metal1, metal2);
     }
 
-    private void SetResult(decimal? volumeMm3, decimal? metalWeight, decimal? cost)
+    private void SetResult(MetalResult? metal1, MetalResult? metal2)
     {
-        _metalWeightRow.Value = metalWeight is null ? "-" : $"{metalWeight:0.00} g";
-        _costRow.Value = cost is null ? "-" : $"R {cost:N2}";
+        _metalWeightRow.Value = metal1 is null ? "-" : $"{metal1.Weight:0.00} g";
+        _costRow.Value = metal1 is null ? "-" : $"R {metal1.Cost:N2}";
 
-        _lastVolumeMm3 = volumeMm3;
-        _lastMetalWeight = metalWeight;
-        _lastMetalCost = cost;
+        if (metal2 is not null)
+        {
+            _metal2WeightRow.Value = $"{metal2.Weight:0.00} g";
+            _metal2CostRow.Value = $"R {metal2.Cost:N2}";
+            _totalWeightRow.Value = $"{(metal1?.Weight ?? 0) + metal2.Weight:0.00} g";
+            _totalMetalCostRow.Value = $"R {(metal1?.Cost ?? 0) + metal2.Cost:N2}";
+
+            _secondMetalResultHost.Content = new StackLayout
+            {
+                Spacing = 4,
+                Items = { _metal2WeightRow, _metal2CostRow, _totalWeightRow, _totalMetalCostRow }
+            };
+        }
+        else
+        {
+            _secondMetalResultHost.Content = null;
+        }
+
+        decimal? totalVolumeMm3 = null;
+        decimal? totalWeight = null;
+        decimal? totalCost = null;
+
+        foreach (var metal in new[] { metal1, metal2 })
+        {
+            if (metal is null)
+            {
+                continue;
+            }
+
+            totalVolumeMm3 = (totalVolumeMm3 ?? 0) + metal.VolumeMm3;
+            totalWeight = (totalWeight ?? 0) + metal.Weight;
+            totalCost = (totalCost ?? 0) + metal.Cost;
+        }
+
+        _lastVolumeMm3 = totalVolumeMm3;
+        _lastMetalWeight = totalWeight;
+        _lastMetalCost = totalCost;
 
         UpdateQuote();
     }
