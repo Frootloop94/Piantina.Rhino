@@ -25,9 +25,13 @@ public class CalculatorView : Panel
     // Manual volume mode
     private readonly NumericStepper _waxVolumeStepper;
 
-    // From Rhino selection mode
+    // From Rhino selection mode - shown at the bottom of the card (see
+    // _selectionFieldsHost), separate from the mode selector/Material
+    // fields above it, since one click here can populate everything above
+    // it (both metals, not just this one).
     private readonly PrimaryButton _getVolumeButton;
     private readonly Label _volumeValueLabel;
+    private readonly Panel _selectionFieldsHost;
     private decimal? _selectedVolumeCm3;
 
     // Second metal - fixed to exactly one extra metal (not an open-ended
@@ -111,6 +115,7 @@ public class CalculatorView : Panel
         };
 
         _dynamicFieldsHost = new Panel();
+        _selectionFieldsHost = new Panel();
 
         _secondMetalCheckBox = new CheckBox { Text = "Add second metal" };
 
@@ -128,14 +133,20 @@ public class CalculatorView : Panel
 
         _secondMetalInputHost = new Panel();
 
+        // Mode selector first, then Material 1 and (if second metal is
+        // added) Material 2's own fields, and the "Use Selected Object"
+        // button/result last - it can populate everything above it in one
+        // click (see UseSelectedObjectVolume), so it reads as the final step
+        // rather than being buried in the middle of the other fields.
         var inputCard = new Card("Casting Calculator")
             .WithContent(
+                _modeSelector,
                 FieldLabel("Material"),
                 _materialDropDown,
-                _modeSelector,
                 _dynamicFieldsHost,
                 _secondMetalCheckBox,
-                _secondMetalInputHost);
+                _secondMetalInputHost,
+                _selectionFieldsHost);
 
         _metalWeightRow = new InfoRow("Metal weight", "-");
         _costRow = new InfoRow("Estimated cost", "-");
@@ -240,23 +251,21 @@ public class CalculatorView : Panel
     }
 
     /// <summary>
-    /// Swaps _dynamicFieldsHost.Content for a fresh layout depending on the
-    /// selected mode. The individual controls (steppers, button, label) are
-    /// created once in the constructor and keep their values across a swap.
+    /// Swaps _dynamicFieldsHost/_selectionFieldsHost's content for a fresh
+    /// layout depending on the selected mode. The individual controls
+    /// (steppers, button, label) are created once in the constructor and
+    /// keep their values across a swap. Manual volume entry sits right under
+    /// Material (where it's needed); the Rhino-selection button/result sits
+    /// in _selectionFieldsHost instead, at the very bottom of the card (see
+    /// its placement in the constructor) rather than here, since it can also
+    /// populate Material 2 further up the card.
     /// </summary>
     private void RebuildDynamicFields()
     {
-        _dynamicFieldsHost.Content = _modeSelector.SelectedIndex == 1
-            ? new StackLayout
-            {
-                Spacing = 8,
-                Items =
-                {
-                    FieldLabel("Volume from selection"),
-                    _getVolumeButton,
-                    _volumeValueLabel
-                }
-            }
+        var usingSelection = _modeSelector.SelectedIndex == 1;
+
+        _dynamicFieldsHost.Content = usingSelection
+            ? null
             : new StackLayout
             {
                 Spacing = 8,
@@ -271,6 +280,19 @@ public class CalculatorView : Panel
                     _waxVolumeStepper
                 }
             };
+
+        _selectionFieldsHost.Content = usingSelection
+            ? new StackLayout
+            {
+                Spacing = 8,
+                Items =
+                {
+                    FieldLabel("Volume from selection"),
+                    _getVolumeButton,
+                    _volumeValueLabel
+                }
+            }
+            : null;
 
         Recalculate();
     }
@@ -299,19 +321,85 @@ public class CalculatorView : Panel
         Recalculate();
     }
 
+    /// <summary>
+    /// Splits the current selection's volume by whichever Piantina material
+    /// each object is wearing (see RhinoGeometryService.GetSelectedVolumesByMaterial),
+    /// so one click handles both a plain single-metal selection and a
+    /// two-tone piece whose parts were already materialed via Apply to
+    /// Selection - populating Material 1 (and, if a second distinct material
+    /// is found, ticking "Add second metal" and populating Material 2 too)
+    /// rather than requiring the material to also be picked by hand.
+    ///
+    /// Only matches objects wearing a Rhino material this plugin itself
+    /// created; anything else (materialed by hand, imported already-
+    /// textured, left at the layer default) is skipped and called out in the
+    /// result label rather than silently mixed into whichever metal it's
+    /// closest to.
+    /// </summary>
     private void UseSelectedObjectVolume()
     {
-        var volume = RhinoGeometryService.GetSelectedVolumeInCubicCentimetres();
+        var (groups, unmatchedCount) = RhinoGeometryService.GetSelectedVolumesByMaterial();
 
-        _selectedVolumeCm3 = volume;
+        // Only the two largest groups are kept - this calculator only
+        // supports a fixed two metals, so a selection with more than that
+        // (unusual) still populates the two biggest rather than refusing
+        // outright, and says so in the label.
+        var matchedGroups = groups
+            .Select(group => (Group: group, Material: _materials.FirstOrDefault(m =>
+                string.Equals(m.Name, group.MaterialName, StringComparison.OrdinalIgnoreCase))))
+            .Where(pair => pair.Material is not null)
+            .Take(2)
+            .ToList();
 
-        _volumeValueLabel.Text = volume is null
-            ? "No solid object selected in Rhino"
-            : $"{volume:0.000} cm³";
+        var skippedCount = unmatchedCount + (groups.Count - matchedGroups.Count);
 
-        _volumeValueLabel.TextColor = volume is null
-            ? Colors.Crimson
-            : AppColors.Text;
+        if (matchedGroups.Count == 0)
+        {
+            _selectedVolumeCm3 = null;
+
+            _volumeValueLabel.Text = groups.Count == 0 && unmatchedCount == 0
+                ? "No solid object selected in Rhino"
+                : "No selected object's material matches a catalog material. Apply a material from the Materials tab first, or set Material/Volume by hand above.";
+            _volumeValueLabel.TextColor = Colors.Crimson;
+
+            Recalculate();
+            return;
+        }
+
+        var (firstGroup, firstMaterial) = matchedGroups[0];
+
+        _materialDropDown.SelectedKey = firstMaterial!.Id.ToString();
+        _selectedVolumeCm3 = firstGroup.VolumeCm3;
+
+        if (matchedGroups.Count > 1)
+        {
+            var (secondGroup, secondMaterial) = matchedGroups[1];
+
+            _material2DropDown.SelectedKey = secondMaterial!.Id.ToString();
+            _volume2Stepper.Value = (double)(secondGroup.VolumeCm3 * 1000m);
+
+            if (_secondMetalCheckBox.Checked != true)
+            {
+                _secondMetalCheckBox.Checked = true;
+                RebuildSecondMetalFields();
+            }
+
+            _volumeValueLabel.Text =
+                $"{firstMaterial.Name}: {firstGroup.VolumeCm3:0.000} cm³, {secondMaterial!.Name}: {secondGroup.VolumeCm3:0.000} cm³";
+        }
+        else
+        {
+            _volumeValueLabel.Text = $"{firstGroup.VolumeCm3:0.000} cm³";
+        }
+
+        if (skippedCount > 0)
+        {
+            _volumeValueLabel.Text += skippedCount == 1
+                ? " (1 object skipped - no matching material.)"
+                : $" ({skippedCount} objects skipped - no matching material.)";
+        }
+
+        _volumeValueLabel.TextColor = AppColors.Text;
 
         Recalculate();
     }

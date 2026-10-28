@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Text.RegularExpressions;
 using Piantina.Core.Materials;
 using Rhino;
 
@@ -81,6 +82,26 @@ public static class MaterialAppearanceService
 
     private static string BuildMaterialName(Material material, MetalFinish finish) =>
         $"Piantina - {material.Name} ({finish})";
+
+    private static readonly Regex MaterialNamePattern =
+        new(@"^Piantina - (.+) \((Polished|Hammered|SandBlast)\)$", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Reverses BuildMaterialName(): given a Rhino render material's own name,
+    /// returns the Material.Name it was created from if it matches this
+    /// plugin's own naming convention, or null if it's any other Rhino
+    /// material (one assigned by hand, imported from elsewhere, or a layer
+    /// default) - used by CalculatorView to detect which Piantina material a
+    /// previously-applied object is wearing, so a "two-tone" selection with
+    /// parts already materialed via Apply to Selection can be split back out
+    /// by material automatically.
+    /// </summary>
+    public static string? TryParseMaterialName(string rhinoMaterialName)
+    {
+        var match = MaterialNamePattern.Match(rhinoMaterialName);
+
+        return match.Success ? match.Groups[1].Value : null;
+    }
 
     /// <summary>
     /// Hammered and sand-blasted surfaces scatter light rather than reflecting it
