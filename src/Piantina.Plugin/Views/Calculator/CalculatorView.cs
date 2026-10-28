@@ -15,7 +15,14 @@ public class CalculatorView : Panel
     // Wide enough for the longest label here ("Total metal cost") and a
     // six-figure Rand value.
     private const int ResultLabelWidth = 115;
-    private const int ResultValueWidth = 90;
+    private const int ResultValueWidth = 100;
+
+    // Matches Card's own default row spacing (contentSpacing: 8, see
+    // Card.cs), so the rows nested inside _secondMetalResultHost/
+    // _quoteMetalCostHost (each its own StackLayout, built separately from
+    // the Card's rows above them) read as the same table rather than a
+    // visibly tighter cluster underneath it.
+    private const int ResultRowSpacing = 8;
 
     private readonly MaterialService _materialService;
 
@@ -448,7 +455,7 @@ public class CalculatorView : Panel
 
             _secondMetalResultHost.Content = new StackLayout
             {
-                Spacing = 4,
+                Spacing = ResultRowSpacing,
                 Items = { _metal2WeightRow, _metal2CostRow, _totalWeightRow, _totalMetalCostRow }
             };
         }
@@ -511,7 +518,7 @@ public class CalculatorView : Panel
         }
         else
         {
-            var metalCostLayout = new StackLayout { Spacing = 4 };
+            var metalCostLayout = new StackLayout { Spacing = ResultRowSpacing };
 
             foreach (var row in metalCostRows)
             {

@@ -40,7 +40,7 @@ public class InfoRow : Panel
         Content = new TableLayout
         {
             Padding = 0,
-            Spacing = new Eto.Drawing.Size(10, 4),
+            Spacing = new Eto.Drawing.Size(6, 4),
 
             Rows =
     {
