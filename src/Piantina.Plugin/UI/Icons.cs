@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Piantina.Core.Services
+namespace Piantina.Plugin.UI
 {
-    internal class MaterialLibrary
+    internal class Icons
     {
     }
 }
