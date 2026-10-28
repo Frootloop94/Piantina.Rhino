@@ -466,9 +466,21 @@ public class CalculatorView : Panel
             metalCostRows.Add(new InfoRow($"{metal.MaterialName} cost", $"R {metal.Cost:N2}"));
         }
 
-        _quoteMetalCostHost.Content = metalCostRows.Count == 0
-            ? new InfoRow("Metal cost", "-")
-            : new StackLayout { Spacing = 4, Items = metalCostRows };
+        if (metalCostRows.Count == 0)
+        {
+            _quoteMetalCostHost.Content = new InfoRow("Metal cost", "-");
+        }
+        else
+        {
+            var metalCostLayout = new StackLayout { Spacing = 4 };
+
+            foreach (var row in metalCostRows)
+            {
+                metalCostLayout.Items.Add(row);
+            }
+
+            _quoteMetalCostHost.Content = metalCostLayout;
+        }
 
         var waxPrintCost = totalVolumeMm3 is { } volumeMm3
             ? CastingCalculator.CalculateWaxPrintCost(volumeMm3)
