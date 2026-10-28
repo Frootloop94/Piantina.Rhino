@@ -401,16 +401,20 @@ public class CalculatorView : Panel
 
     private void SetResult(MetalResult? metal1, MetalResult? metal2)
     {
-        _metalWeightRow.Label = metal1 is null ? "Metal weight" : $"{metal1.MaterialName} weight";
+        var metal1Code = metal1 is null ? null : MaterialAbbreviation.Abbreviate(metal1.MaterialName);
+
+        _metalWeightRow.Label = metal1Code is null ? "Metal weight" : $"{metal1Code} weight";
         _metalWeightRow.Value = metal1 is null ? "-" : $"{metal1.Weight:0.00} g";
-        _costRow.Label = metal1 is null ? "Estimated cost" : $"{metal1.MaterialName} cost";
+        _costRow.Label = metal1Code is null ? "Estimated cost" : $"{metal1Code} cost";
         _costRow.Value = metal1 is null ? "-" : $"R {metal1.Cost:N2}";
 
         if (metal2 is not null)
         {
-            _metal2WeightRow.Label = $"{metal2.MaterialName} weight";
+            var metal2Code = MaterialAbbreviation.Abbreviate(metal2.MaterialName);
+
+            _metal2WeightRow.Label = $"{metal2Code} weight";
             _metal2WeightRow.Value = $"{metal2.Weight:0.00} g";
-            _metal2CostRow.Label = $"{metal2.MaterialName} cost";
+            _metal2CostRow.Label = $"{metal2Code} cost";
             _metal2CostRow.Value = $"R {metal2.Cost:N2}";
             _totalWeightRow.Value = $"{(metal1?.Weight ?? 0) + metal2.Weight:0.00} g";
             _totalMetalCostRow.Value = $"R {(metal1?.Cost ?? 0) + metal2.Cost:N2}";
@@ -463,7 +467,9 @@ public class CalculatorView : Panel
             totalWeight = (totalWeight ?? 0) + metal.Weight;
             totalMetalCost += metal.Cost;
 
-            metalCostRows.Add(new InfoRow($"{metal.MaterialName} cost", $"R {metal.Cost:N2}"));
+            var metalCode = MaterialAbbreviation.Abbreviate(metal.MaterialName);
+
+            metalCostRows.Add(new InfoRow($"{metalCode} cost", $"R {metal.Cost:N2}"));
         }
 
         if (metalCostRows.Count == 0)
