@@ -50,4 +50,19 @@ public class InfoRow : Panel
     }
         };
     }
+
+    /// <summary>
+    /// Fixes both columns to an exact width instead of each one sizing to
+    /// its own label/value text, so a group of InfoRows stacked in the same
+    /// card (each one its own independent TableLayout) lines up into a
+    /// clean two-column table - relying on the value column's own
+    /// TextAlignment.Right isn't enough on its own, since that only aligns
+    /// text within whatever width this one row happens to need, not a width
+    /// shared with its sibling rows above/below it.
+    /// </summary>
+    public void SetColumnWidths(int labelWidth, int valueWidth)
+    {
+        _label.Width = labelWidth;
+        _value.Width = valueWidth;
+    }
 }

@@ -10,6 +10,13 @@ namespace Piantina.Plugin.Views.Calculator;
 
 public class CalculatorView : Panel
 {
+    // Shared by every InfoRow in Result/Quick Quote so their value columns
+    // line up into one right-aligned table - see InfoRow.SetColumnWidths.
+    // Wide enough for the longest label here ("Total metal cost") and a
+    // six-figure Rand value.
+    private const int ResultLabelWidth = 115;
+    private const int ResultValueWidth = 90;
+
     private readonly MaterialService _materialService;
 
     private readonly DropDown _materialDropDown;
@@ -154,6 +161,21 @@ public class CalculatorView : Panel
         _totalMetalCostRow = new InfoRow("Total metal cost", "-");
         _secondMetalResultHost = new Panel();
 
+        // Fixed column widths rather than each InfoRow sizing itself to its
+        // own text - otherwise every row in Result/Quick Quote lines up its
+        // value right after that row's own (differently-sized) label
+        // instead of into one shared right-aligned column. Wide enough for
+        // the longest label here ("Total metal cost") and a six-figure Rand
+        // value.
+        foreach (var row in new[]
+                 {
+                     _metalWeightRow, _costRow,
+                     _metal2WeightRow, _metal2CostRow, _totalWeightRow, _totalMetalCostRow
+                 })
+        {
+            row.SetColumnWidths(labelWidth: ResultLabelWidth, valueWidth: ResultValueWidth);
+        }
+
         var resultCard = new Card("Result")
             .WithContent(
                 _metalWeightRow,
@@ -174,6 +196,11 @@ public class CalculatorView : Panel
         _castingFeeRow = new InfoRow("Casting fee", "-");
         _quoteMetalCostHost = new Panel();
         _totalQuoteRow = new InfoRow("Total Quote", "-");
+
+        foreach (var row in new[] { _waxPrintRow, _castingFeeRow, _totalQuoteRow })
+        {
+            row.SetColumnWidths(labelWidth: ResultLabelWidth, valueWidth: ResultValueWidth);
+        }
 
         var quoteCard = new Card("Quick Quote")
             .WithContent(
@@ -469,12 +496,18 @@ public class CalculatorView : Panel
 
             var metalCode = MaterialAbbreviation.Abbreviate(metal.MaterialName);
 
-            metalCostRows.Add(new InfoRow($"{metalCode} cost", $"R {metal.Cost:N2}"));
+            var metalCostRow = new InfoRow($"{metalCode} cost", $"R {metal.Cost:N2}");
+            metalCostRow.SetColumnWidths(labelWidth: ResultLabelWidth, valueWidth: ResultValueWidth);
+
+            metalCostRows.Add(metalCostRow);
         }
 
         if (metalCostRows.Count == 0)
         {
-            _quoteMetalCostHost.Content = new InfoRow("Metal cost", "-");
+            var emptyRow = new InfoRow("Metal cost", "-");
+            emptyRow.SetColumnWidths(labelWidth: ResultLabelWidth, valueWidth: ResultValueWidth);
+
+            _quoteMetalCostHost.Content = emptyRow;
         }
         else
         {
