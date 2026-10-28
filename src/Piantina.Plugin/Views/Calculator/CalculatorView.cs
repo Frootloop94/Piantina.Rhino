@@ -13,38 +13,28 @@ public class CalculatorView : Panel
     private readonly MaterialService _materialService;
 
     private readonly DropDown _materialDropDown;
-    private readonly RadioButtonList _modeSelector;
-
-    // Hosts whichever field set is active; its Content is replaced wholesale on
-    // mode change rather than clearing/rebuilding the Card's own content area,
-    // since Eto's DynamicLayout (which Card uses internally) doesn't reliably
-    // support Clear()+AddRow() reuse. Same pattern MaterialList already uses
-    // for its rebuildable list via _materialHost.
-    private readonly Panel _dynamicFieldsHost;
-
-    // Manual volume mode
-    private readonly NumericStepper _waxVolumeStepper;
-
-    // From Rhino selection mode - shown at the bottom of the card (see
-    // _selectionFieldsHost), separate from the mode selector/Material
-    // fields above it, since one click here can populate everything above
-    // it (both metals, not just this one).
-    private readonly PrimaryButton _getVolumeButton;
-    private readonly Label _volumeValueLabel;
-    private readonly Panel _selectionFieldsHost;
-    private decimal? _selectedVolumeCm3;
+    private readonly NumericStepper _volume1Stepper;
 
     // Second metal - fixed to exactly one extra metal (not an open-ended
     // list) since that covers the business's actual case ("sometimes two
     // metals part of the quote") without the extra UI an arbitrary-length
-    // list would need in a narrow sidebar. Manual volume entry only, no
-    // "From Rhino selection" mode of its own - picking which of two
-    // selected solids is which metal adds real complexity for a case that's
-    // already the exception rather than the rule.
+    // list would need in a narrow sidebar. Mirrors Material 1's own
+    // dropdown + volume stepper pair exactly, including that both are
+    // always plain manual fields - "Use Selected Object" below just writes
+    // into them, the same as a user typing a value in by hand.
     private readonly CheckBox _secondMetalCheckBox;
     private readonly DropDown _material2DropDown;
     private readonly NumericStepper _volume2Stepper;
+
+    // Hosts whichever field set is active; its Content is replaced wholesale
+    // rather than clearing/rebuilding the Card's own content area, since
+    // Eto's DynamicLayout (which Card uses internally) doesn't reliably
+    // support Clear()+AddRow() reuse. Same pattern MaterialList already uses
+    // for its rebuildable list via _materialHost.
     private readonly Panel _secondMetalInputHost;
+
+    private readonly PrimaryButton _getVolumeButton;
+    private readonly Label _volumeValueLabel;
 
     private readonly InfoRow _metalWeightRow;
     private readonly InfoRow _costRow;
@@ -59,19 +49,17 @@ public class CalculatorView : Panel
     private readonly InfoRow _totalMetalCostRow;
 
     // Quick Quote - Design Fee is the only field entered directly here; Wax
-    // print and Casting fee are the business's own standing rates (see
-    // CastingCalculator) applied to the volume/weight already worked out
-    // above, and Metal cost just mirrors the Result card's own cost, so nothing
-    // has to be re-entered or can drift out of sync with the calculator above it.
+    // print, Casting fee, and the metal cost line(s) are all worked out from
+    // the Calculator's own last result above, so nothing has to be
+    // re-entered or can drift out of sync with it.
     private readonly NumericStepper _designFeeStepper;
     private readonly InfoRow _waxPrintRow;
     private readonly InfoRow _castingFeeRow;
-    private readonly InfoRow _quoteMetalCostRow;
+    private readonly Panel _quoteMetalCostHost;
     private readonly InfoRow _totalQuoteRow;
 
-    private decimal? _lastVolumeMm3;
-    private decimal? _lastMetalWeight;
-    private decimal? _lastMetalCost;
+    private MetalResult? _lastMetal1;
+    private MetalResult? _lastMetal2;
 
     private List<Material> _materials = new();
 
@@ -83,19 +71,7 @@ public class CalculatorView : Panel
 
         _materialDropDown = new DropDown { Font = AppFonts.Body };
 
-        // Vertical, not horizontal - "Manual volume (mm³)" and "From Rhino
-        // selection" side by side need more width than a narrow docked
-        // sidebar has, which was forcing the whole tab to scroll
-        // horizontally and clip content at both edges.
-        _modeSelector = new RadioButtonList
-        {
-            Orientation = Orientation.Vertical,
-            Spacing = new Size(0, 6),
-            Items = { "Manual volume (mm³)", "From Rhino selection" }
-        };
-        _modeSelector.SelectedIndex = 0;
-
-        _waxVolumeStepper = new NumericStepper
+        _volume1Stepper = new NumericStepper
         {
             Font = AppFonts.Body,
             DecimalPlaces = 1,
@@ -104,18 +80,6 @@ public class CalculatorView : Panel
             Increment = 10,
             Value = 0
         };
-
-        _getVolumeButton = new PrimaryButton("Use Selected Object", UseSelectedObjectVolume);
-
-        _volumeValueLabel = new Label
-        {
-            Font = AppFonts.Body,
-            TextColor = AppColors.TextMuted,
-            Text = "No object selected yet"
-        };
-
-        _dynamicFieldsHost = new Panel();
-        _selectionFieldsHost = new Panel();
 
         _secondMetalCheckBox = new CheckBox { Text = "Add second metal" };
 
@@ -133,20 +97,53 @@ public class CalculatorView : Panel
 
         _secondMetalInputHost = new Panel();
 
-        // Mode selector first, then Material 1 and (if second metal is
-        // added) Material 2's own fields, and the "Use Selected Object"
-        // button/result last - it can populate everything above it in one
-        // click (see UseSelectedObjectVolume), so it reads as the final step
-        // rather than being buried in the middle of the other fields.
-        var inputCard = new Card("Casting Calculator")
-            .WithContent(
-                _modeSelector,
+        _getVolumeButton = new PrimaryButton("Use Selected Object", UseSelectedObjectVolume);
+
+        _volumeValueLabel = new Label
+        {
+            Font = AppFonts.Body,
+            TextColor = AppColors.TextMuted,
+            Text = "No object selected yet"
+        };
+
+        // Material 1's own fields are wrapped in a StackLayout the same way
+        // Material 2's are (via _secondMetalInputHost below), rather than
+        // added to the Card as individual rows directly - mixing the two
+        // approaches was what made the Material dropdown render stretched
+        // to the Card's full width while Material 2's own dropdown didn't.
+        var material1Section = new StackLayout
+        {
+            Spacing = 8,
+            Items =
+            {
                 FieldLabel("Material"),
                 _materialDropDown,
-                _dynamicFieldsHost,
+                FieldLabel("Volume 1 (mm³)"),
+                _volume1Stepper
+            }
+        };
+
+        // "Use Selected Object" sits at the very bottom of the card, below
+        // both metals' own fields - it can populate everything above it in
+        // one click (see UseSelectedObjectVolume), so it reads as the final
+        // step rather than being buried in the middle of the other fields.
+        var selectionSection = new StackLayout
+        {
+            Spacing = 8,
+            Items =
+            {
+                FieldLabel("Volume from selection"),
+                _getVolumeButton,
+                _volumeValueLabel
+            }
+        };
+
+        var inputCard = new Card("Casting Calculator")
+            .WithContent(
+                material1Section,
                 _secondMetalCheckBox,
                 _secondMetalInputHost,
-                _selectionFieldsHost);
+                selectionSection);
 
         _metalWeightRow = new InfoRow("Metal weight", "-");
         _costRow = new InfoRow("Estimated cost", "-");
@@ -175,7 +172,7 @@ public class CalculatorView : Panel
 
         _waxPrintRow = new InfoRow("Wax print", "-");
         _castingFeeRow = new InfoRow("Casting fee", "-");
-        _quoteMetalCostRow = new InfoRow("Metal cost", "-");
+        _quoteMetalCostHost = new Panel();
         _totalQuoteRow = new InfoRow("Total Quote", "-");
 
         var quoteCard = new Card("Quick Quote")
@@ -184,7 +181,7 @@ public class CalculatorView : Panel
                 _designFeeStepper,
                 _waxPrintRow,
                 _castingFeeRow,
-                _quoteMetalCostRow,
+                _quoteMetalCostHost,
                 _totalQuoteRow);
 
         // Stacked vertically rather than side by side: this panel is meant to
@@ -211,15 +208,13 @@ public class CalculatorView : Panel
         };
 
         _materialDropDown.SelectedKeyChanged += (_, _) => Recalculate();
-        _modeSelector.SelectedIndexChanged += (_, _) => RebuildDynamicFields();
-        _waxVolumeStepper.ValueChanged += (_, _) => Recalculate();
+        _volume1Stepper.ValueChanged += (_, _) => Recalculate();
         _secondMetalCheckBox.CheckedChanged += (_, _) => RebuildSecondMetalFields();
         _material2DropDown.SelectedKeyChanged += (_, _) => Recalculate();
         _volume2Stepper.ValueChanged += (_, _) => Recalculate();
         _designFeeStepper.ValueChanged += (_, _) => UpdateQuote();
 
         LoadMaterials();
-        RebuildDynamicFields();
         RebuildSecondMetalFields();
     }
 
@@ -248,59 +243,13 @@ public class CalculatorView : Panel
             _materialDropDown.SelectedKey = _materials[0].Id.ToString();
             _material2DropDown.SelectedKey = _materials[0].Id.ToString();
         }
-    }
-
-    /// <summary>
-    /// Swaps _dynamicFieldsHost/_selectionFieldsHost's content for a fresh
-    /// layout depending on the selected mode. The individual controls
-    /// (steppers, button, label) are created once in the constructor and
-    /// keep their values across a swap. Manual volume entry sits right under
-    /// Material (where it's needed); the Rhino-selection button/result sits
-    /// in _selectionFieldsHost instead, at the very bottom of the card (see
-    /// its placement in the constructor) rather than here, since it can also
-    /// populate Material 2 further up the card.
-    /// </summary>
-    private void RebuildDynamicFields()
-    {
-        var usingSelection = _modeSelector.SelectedIndex == 1;
-
-        _dynamicFieldsHost.Content = usingSelection
-            ? null
-            : new StackLayout
-            {
-                Spacing = 8,
-                Items =
-                {
-                    // mm³, not grams - the business sometimes can't get a
-                    // reliable volume straight out of Rhino and instead
-                    // exports to Materialise to get it there, so this takes
-                    // the volume directly rather than a weight that would
-                    // need converting back through an assumed wax density.
-                    FieldLabel("Wax volume (mm³)"),
-                    _waxVolumeStepper
-                }
-            };
-
-        _selectionFieldsHost.Content = usingSelection
-            ? new StackLayout
-            {
-                Spacing = 8,
-                Items =
-                {
-                    FieldLabel("Volume from selection"),
-                    _getVolumeButton,
-                    _volumeValueLabel
-                }
-            }
-            : null;
 
         Recalculate();
     }
 
     /// <summary>
     /// Swaps _secondMetalInputHost's content between empty and the
-    /// Material 2/Volume 2 fields, following _secondMetalCheckBox - same
-    /// wholesale-Content-replace pattern as RebuildDynamicFields() above.
+    /// Material 2/Volume 2 fields, following _secondMetalCheckBox.
     /// </summary>
     private void RebuildSecondMetalFields()
     {
@@ -326,9 +275,9 @@ public class CalculatorView : Panel
     /// each object is wearing (see RhinoGeometryService.GetSelectedVolumesByMaterial),
     /// so one click handles both a plain single-metal selection and a
     /// two-tone piece whose parts were already materialed via Apply to
-    /// Selection - populating Material 1 (and, if a second distinct material
-    /// is found, ticking "Add second metal" and populating Material 2 too)
-    /// rather than requiring the material to also be picked by hand.
+    /// Selection - filling Volume 1 (and, if a second distinct material is
+    /// found, ticking "Add second metal" and filling Material 2/Volume 2
+    /// too) rather than requiring everything to be picked/typed by hand.
     ///
     /// Only matches objects wearing a Rhino material this plugin itself
     /// created; anything else (materialed by hand, imported already-
@@ -355,11 +304,9 @@ public class CalculatorView : Panel
 
         if (matchedGroups.Count == 0)
         {
-            _selectedVolumeCm3 = null;
-
             _volumeValueLabel.Text = groups.Count == 0 && unmatchedCount == 0
                 ? "No solid object selected in Rhino"
-                : "No selected object's material matches a catalog material. Apply a material from the Materials tab first, or set Material/Volume by hand above.";
+                : "No selected object's material matches a catalog material.\nApply a material from the Materials tab first, or set Material/Volume by hand above.";
             _volumeValueLabel.TextColor = Colors.Crimson;
 
             Recalculate();
@@ -369,7 +316,9 @@ public class CalculatorView : Panel
         var (firstGroup, firstMaterial) = matchedGroups[0];
 
         _materialDropDown.SelectedKey = firstMaterial!.Id.ToString();
-        _selectedVolumeCm3 = firstGroup.VolumeCm3;
+        _volume1Stepper.Value = (double)(firstGroup.VolumeCm3 * 1000m);
+
+        var lines = new List<string> { $"{firstMaterial.Name}: {firstGroup.VolumeCm3:0.000} cm³" };
 
         if (matchedGroups.Count > 1)
         {
@@ -384,32 +333,31 @@ public class CalculatorView : Panel
                 RebuildSecondMetalFields();
             }
 
-            _volumeValueLabel.Text =
-                $"{firstMaterial.Name}: {firstGroup.VolumeCm3:0.000} cm³, {secondMaterial!.Name}: {secondGroup.VolumeCm3:0.000} cm³";
-        }
-        else
-        {
-            _volumeValueLabel.Text = $"{firstGroup.VolumeCm3:0.000} cm³";
+            lines.Add($"{secondMaterial!.Name}: {secondGroup.VolumeCm3:0.000} cm³");
         }
 
         if (skippedCount > 0)
         {
-            _volumeValueLabel.Text += skippedCount == 1
-                ? " (1 object skipped - no matching material.)"
-                : $" ({skippedCount} objects skipped - no matching material.)";
+            lines.Add(skippedCount == 1
+                ? "1 object skipped - no matching material."
+                : $"{skippedCount} objects skipped - no matching material.");
         }
 
+        // One line per material/message rather than a single comma-joined
+        // sentence, so a two-material result reads as a short list, not a
+        // run-on.
+        _volumeValueLabel.Text = string.Join("\n", lines);
         _volumeValueLabel.TextColor = AppColors.Text;
 
         Recalculate();
     }
 
-    private record MetalResult(decimal VolumeMm3, decimal Weight, decimal Cost);
+    private record MetalResult(string MaterialName, decimal VolumeMm3, decimal Weight, decimal Cost);
 
     /// <summary>
     /// Resolves one metal's volume (cm³) against a material to a full
-    /// result, or null if either input isn't usable yet - shared by the
-    /// primary material/mode and the optional second metal.
+    /// result, or null if either input isn't usable yet - shared by both
+    /// metals.
     /// </summary>
     private MetalResult? ComputeMetalResult(string? materialKey, decimal? volumeCm3)
     {
@@ -428,27 +376,15 @@ public class CalculatorView : Panel
         var weight = CastingCalculator.CalculateMetalWeightFromVolume(v, material.Density);
         var cost = CastingCalculator.CalculateCost(weight, material.PricePerGram);
 
-        return new MetalResult(v * 1000m, weight, cost);
+        return new MetalResult(material.Name, v * 1000m, weight, cost);
     }
 
     private void Recalculate()
     {
-        // Both modes resolve to a volume in cm³ first - "manual" just starts
-        // from mm³ (what the business actually has on hand day to day) and
-        // converts, rather than the old gram-plus-assumed-wax-density path.
-        decimal? primaryVolumeCm3;
+        var volume1Mm3 = (decimal)_volume1Stepper.Value;
+        var volume1Cm3 = volume1Mm3 > 0 ? volume1Mm3 / 1000m : (decimal?)null;
 
-        if (_modeSelector.SelectedIndex == 1)
-        {
-            primaryVolumeCm3 = _selectedVolumeCm3;
-        }
-        else
-        {
-            var waxVolumeMm3 = (decimal)_waxVolumeStepper.Value;
-            primaryVolumeCm3 = waxVolumeMm3 > 0 ? waxVolumeMm3 / 1000m : null;
-        }
-
-        var metal1 = ComputeMetalResult(_materialDropDown.SelectedKey, primaryVolumeCm3);
+        var metal1 = ComputeMetalResult(_materialDropDown.SelectedKey, volume1Cm3);
 
         MetalResult? metal2 = null;
 
@@ -465,12 +401,16 @@ public class CalculatorView : Panel
 
     private void SetResult(MetalResult? metal1, MetalResult? metal2)
     {
+        _metalWeightRow.Label = metal1 is null ? "Metal weight" : $"{metal1.MaterialName} weight";
         _metalWeightRow.Value = metal1 is null ? "-" : $"{metal1.Weight:0.00} g";
+        _costRow.Label = metal1 is null ? "Estimated cost" : $"{metal1.MaterialName} cost";
         _costRow.Value = metal1 is null ? "-" : $"R {metal1.Cost:N2}";
 
         if (metal2 is not null)
         {
+            _metal2WeightRow.Label = $"{metal2.MaterialName} weight";
             _metal2WeightRow.Value = $"{metal2.Weight:0.00} g";
+            _metal2CostRow.Label = $"{metal2.MaterialName} cost";
             _metal2CostRow.Value = $"R {metal2.Cost:N2}";
             _totalWeightRow.Value = $"{(metal1?.Weight ?? 0) + metal2.Weight:0.00} g";
             _totalMetalCostRow.Value = $"R {(metal1?.Cost ?? 0) + metal2.Cost:N2}";
@@ -486,25 +426,8 @@ public class CalculatorView : Panel
             _secondMetalResultHost.Content = null;
         }
 
-        decimal? totalVolumeMm3 = null;
-        decimal? totalWeight = null;
-        decimal? totalCost = null;
-
-        foreach (var metal in new[] { metal1, metal2 })
-        {
-            if (metal is null)
-            {
-                continue;
-            }
-
-            totalVolumeMm3 = (totalVolumeMm3 ?? 0) + metal.VolumeMm3;
-            totalWeight = (totalWeight ?? 0) + metal.Weight;
-            totalCost = (totalCost ?? 0) + metal.Cost;
-        }
-
-        _lastVolumeMm3 = totalVolumeMm3;
-        _lastMetalWeight = totalWeight;
-        _lastMetalCost = totalCost;
+        _lastMetal1 = metal1;
+        _lastMetal2 = metal2;
 
         UpdateQuote();
     }
@@ -515,25 +438,50 @@ public class CalculatorView : Panel
     /// applied to the Calculator's own last result, plus whatever Design Fee
     /// is currently entered. Called after every Recalculate() (so it tracks
     /// the Calculator above it) and on its own when just the Design Fee
-    /// changes.
+    /// changes. The metal cost line(s) are named after whichever material(s)
+    /// are actually in use - one row normally, two when a second metal is
+    /// added - rather than a single generic "Metal cost" row.
     /// </summary>
     private void UpdateQuote()
     {
         var designFee = (decimal)_designFeeStepper.Value;
 
-        var waxPrintCost = _lastVolumeMm3 is { } volumeMm3
+        decimal? totalVolumeMm3 = null;
+        decimal? totalWeight = null;
+        decimal totalMetalCost = 0;
+
+        var metalCostRows = new List<Control>();
+
+        foreach (var metal in new[] { _lastMetal1, _lastMetal2 })
+        {
+            if (metal is null)
+            {
+                continue;
+            }
+
+            totalVolumeMm3 = (totalVolumeMm3 ?? 0) + metal.VolumeMm3;
+            totalWeight = (totalWeight ?? 0) + metal.Weight;
+            totalMetalCost += metal.Cost;
+
+            metalCostRows.Add(new InfoRow($"{metal.MaterialName} cost", $"R {metal.Cost:N2}"));
+        }
+
+        _quoteMetalCostHost.Content = metalCostRows.Count == 0
+            ? new InfoRow("Metal cost", "-")
+            : new StackLayout { Spacing = 4, Items = metalCostRows };
+
+        var waxPrintCost = totalVolumeMm3 is { } volumeMm3
             ? CastingCalculator.CalculateWaxPrintCost(volumeMm3)
             : (decimal?)null;
 
-        var castingFee = _lastMetalWeight is { } metalWeight
-            ? CastingCalculator.CalculateCastingFee(metalWeight)
+        var castingFee = totalWeight is { } weight
+            ? CastingCalculator.CalculateCastingFee(weight)
             : (decimal?)null;
 
         _waxPrintRow.Value = waxPrintCost is null ? "-" : $"R {waxPrintCost:N2}";
         _castingFeeRow.Value = castingFee is null ? "-" : $"R {castingFee:N2}";
-        _quoteMetalCostRow.Value = _lastMetalCost is null ? "-" : $"R {_lastMetalCost:N2}";
 
-        var total = designFee + (waxPrintCost ?? 0) + (castingFee ?? 0) + (_lastMetalCost ?? 0);
+        var total = designFee + (waxPrintCost ?? 0) + (castingFee ?? 0) + totalMetalCost;
         _totalQuoteRow.Value = $"R {total:N2}";
     }
 }
