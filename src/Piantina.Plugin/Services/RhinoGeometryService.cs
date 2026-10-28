@@ -118,7 +118,7 @@ public static class RhinoGeometryService
                 continue;
             }
 
-            var volumeProperties = VolumeMassProperties.Compute(rhinoObject.Geometry);
+            var volumeProperties = VolumeMassProperties.Compute(new[] { rhinoObject.Geometry });
 
             if (volumeProperties is null)
             {
